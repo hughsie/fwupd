@@ -18,6 +18,7 @@ option('plugin_amt', type : 'boolean', value : true, description : 'enable Intel
 option('plugin_dell', type : 'boolean', value : true, description : 'enable Dell-specific support')
 option('plugin_dummy', type : 'boolean', value : false, description : 'enable the dummy device')
 option('plugin_emmc', type : 'boolean', value : true, description : 'enable eMMC support')
+option('plugin_parade_lspcon', type : 'boolean', value : true, description : 'enable Parade LSPCON support')
 option('plugin_realtek_mst', type : 'boolean', value : true, description : 'enable Realtek MST hub support')
 option('plugin_synaptics_mst', type: 'boolean', value: true, description : 'enable Synaptics MST hub support')
 option('plugin_synaptics_rmi', type: 'boolean', value: true, description : 'enable Synaptics RMI support')
