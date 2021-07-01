@@ -33,6 +33,7 @@ option('plugin_msr', type : 'boolean', value : true, description : 'enable MSR s
 option('plugin_flashrom', type : 'boolean', value : false, description : 'enable libflashrom support')
 option('plugin_platform_integrity', type : 'boolean', value : false, description : 'enable platform integrity support')
 option('plugin_intel_spi', type : 'boolean', value : false, description : 'enable Intel SPI support')
+option('plugin_kinetic_dp', type: 'boolean', value: true, description : 'enable Kinetic SST/MST DisplayPort converter support')
 option('qubes', type : 'boolean', value : false, description : 'build packages for Qubes OS')
 option('supported_build', type : 'boolean', value : false, description: 'distribution package with upstream support')
 option('systemd', type : 'boolean', value : true, description : 'enable systemd support')

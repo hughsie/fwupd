@@ -1,0 +1,4 @@
+# match all devices with this udev subsystem
+[DRM_DP_AUX_DEV]
+Plugin = kinetic_dp
+

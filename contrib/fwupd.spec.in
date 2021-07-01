@@ -428,6 +428,7 @@ done
 %{_libdir}/fwupd-plugins-3/libfu_plugin_hailuck.so
 %{_libdir}/fwupd-plugins-3/libfu_plugin_iommu.so
 %{_libdir}/fwupd-plugins-3/libfu_plugin_jabra.so
+%{_libdir}/fwupd-plugins-3/libfu_plugin_kinetic_dp.so
 %{_libdir}/fwupd-plugins-3/libfu_plugin_lenovo_thinklmi.so
 %{_libdir}/fwupd-plugins-3/libfu_plugin_linux_lockdown.so
 %{_libdir}/fwupd-plugins-3/libfu_plugin_linux_sleep.so
@@ -449,9 +450,7 @@ done
 %{_libdir}/fwupd-plugins-3/libfu_plugin_solokey.so
 %{_libdir}/fwupd-plugins-3/libfu_plugin_steelseries.so
 %{_libdir}/fwupd-plugins-3/libfu_plugin_superio.so
-%if 0%{?have_dell}
 %{_libdir}/fwupd-plugins-3/libfu_plugin_synaptics_mst.so
-%endif
 %{_libdir}/fwupd-plugins-3/libfu_plugin_synaptics_cxaudio.so
 %{_libdir}/fwupd-plugins-3/libfu_plugin_synaptics_prometheus.so
 %{_libdir}/fwupd-plugins-3/libfu_plugin_synaptics_rmi.so
