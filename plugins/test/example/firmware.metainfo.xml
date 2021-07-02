@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2021 Richard Hughes <richard@hughsie.com> -->
+<component type="firmware">
+  <id>example.firmware</id>
+  <name>UEFI Firmware</name>
+  <summary>Example UEFI firmware for fwupd</summary>
+  <description>
+    <p>
+      The test device can be updated usingthe UEFI capsule plugin.
+    </p>
+  </description>
+  <provides>
+    <firmware type="flashed">a18eff3d-8bc6-56d5-8a4b-1f68a3d8a724</firmware>
+  </provides>
+  <url type="homepage">https://fwupd.org/</url>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>CC0-1.0</project_license>
+  <developer_name>Richard Hughes</developer_name>
+  <releases>
+    <release urgency="high" version="1.2.3" date="2021-07-02">
+      <checksum filename="firmware.bin" target="content"/>
+      <description>
+        <p>
+          This release updates a frobnicator to frob faster.
+        </p>
+      </description>
+    </release>
+  </releases>
+  <requires>
+    <id compare="ge" version="1.6.2">org.freedesktop.fwupd</id>
+  </requires>
+</component>

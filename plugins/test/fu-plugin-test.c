@@ -31,6 +31,25 @@ gboolean
 fu_plugin_coldplug (FuPlugin *plugin, GError **error)
 {
 	g_autoptr(FuDevice) device = NULL;
+	g_autoptr(FuDevice) device_uefi = fu_device_new ();
+
+	/* UEFI device handled in another plugin */
+	fu_device_set_id (device_uefi, "FakeUEFI");
+	fu_device_add_instance_id (device_uefi, "FakeUEFI");
+	fu_device_set_name (device_uefi, "Fake UEFI");
+	fu_device_add_flag (device_uefi, FWUPD_DEVICE_FLAG_UPDATABLE);
+	fu_device_add_flag (device_uefi, FWUPD_DEVICE_FLAG_INTERNAL);
+	fu_device_add_protocol (device_uefi, "org.uefi.capsule");
+	fu_device_set_vendor (device_uefi, "ACME Corp.");
+	fu_device_add_vendor_id (device_uefi, "DMI:Acme");
+	fu_device_set_version_format (device_uefi, FWUPD_VERSION_FORMAT_TRIPLET);
+	fu_device_set_version (device_uefi, "1.2.2");
+	fu_device_set_metadata (device_uefi, FU_DEVICE_METADATA_UEFI_DEVICE_KIND, "device-firmware");
+	if (!fu_device_setup (device_uefi, error))
+		return FALSE;
+	fu_plugin_device_register (plugin, device_uefi);
+
+	/* handled locally */
 	device = fu_device_new ();
 	fu_device_set_id (device, "FakeDevice");
 	fu_device_add_guid (device, "b585990a-003e-5270-89d5-3705a17f9a43");
