@@ -3116,11 +3116,40 @@ fu_common_crc8 (const guint8 *buf, gsize bufsz)
 }
 
 /**
+ * fu_common_crc16_full:
+ * @buf: memory buffer
+ * @bufsz: size of @buf
+ * @crc: initial CRC value, typically 0xFFFF
+ * @polynomial: CRC polynomial, typically 0xA001 for IBM or 0x1021 for CCITT
+ *
+ * Returns the cyclic redundancy check value for the given memory buffer.
+ *
+ * Returns: CRC value
+ *
+ * Since: 1.6.2
+ **/
+guint16
+fu_common_crc16_full (const guint8 *buf, gsize bufsz, guint16 crc, guint16 polynomial)
+{
+	for (gsize len = bufsz; len > 0; len--) {
+		crc = (guint16) (crc ^ (*buf++));
+		for (guint8 i = 0; i < 8; i++) {
+			if (crc & 0x1) {
+				crc = (crc >> 1) ^ polynomial;
+			} else {
+				crc >>= 1;
+			}
+		}
+	}
+	return ~crc;
+}
+
+/**
  * fu_common_crc16:
  * @buf: memory buffer
  * @bufsz: size of @buf
  *
- * Returns the cyclic redundancy check value for the given memory buffer.
+ * Returns the CRC-16-IBM cyclic redundancy value for the given memory buffer.
  *
  * Returns: CRC value
  *
@@ -3129,18 +3158,7 @@ fu_common_crc8 (const guint8 *buf, gsize bufsz)
 guint16
 fu_common_crc16 (const guint8 *buf, gsize bufsz)
 {
-	guint16 crc = 0xffff;
-	for (gsize len = bufsz; len > 0; len--) {
-		crc = (guint16) (crc ^ (*buf++));
-		for (guint8 i = 0; i < 8; i++) {
-			if (crc & 0x1) {
-				crc = (crc >> 1) ^ 0xa001;
-			} else {
-				crc >>= 1;
-			}
-		}
-	}
-	return ~crc;
+	return fu_common_crc16_full (buf, bufsz, 0xFFFF, 0xA001);
 }
 
 /**

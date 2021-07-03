@@ -404,6 +404,10 @@ guint8		 fu_common_crc8			(const guint8	*buf,
 						 gsize		 bufsz);
 guint16		 fu_common_crc16		(const guint8	*buf,
 						 gsize		 bufsz);
+guint16		 fu_common_crc16_full		(const guint8	*buf,
+						 gsize		 bufsz,
+						 guint16	 crc,
+						 guint16	 polynomial);
 guint32		 fu_common_crc32		(const guint8	*buf,
 						 gsize		 bufsz);
 guint32		 fu_common_crc32_full		(const guint8	*buf,

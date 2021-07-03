@@ -819,6 +819,7 @@ LIBFWUPDPLUGIN_1.6.1 {
 LIBFWUPDPLUGIN_1.6.2 {
   global:
     fu_common_check_kernel_version;
+    fu_common_crc16_full;
     fu_device_add_parent_physical_id;
     fu_device_add_private_flag;
     fu_device_get_parent_physical_ids;
