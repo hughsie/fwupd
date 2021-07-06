@@ -495,9 +495,12 @@ fu_kinetic_dp_secure_aux_isp_execute_isp_drv (FuKineticDpConnection *connection,
 		return FALSE;
 	}
 
-	flash_id = (guint16) reply_data[0] << 8 | reply_data[1];
-	flash_size = (guint16) reply_data[2] << 8 | reply_data[3];
-	read_flash_prog_time = (guint16) reply_data[4] << 8 | reply_data[5];
+	if (!fu_common_read_uint16_safe(reply_data, sizeof (reply_data), 0, &flash_id, G_BIG_ENDIAN, error))
+		return FALSE;
+	if (!fu_common_read_uint16_safe(reply_data, sizeof (reply_data), 2, &flash_size, G_BIG_ENDIAN, error))
+		return FALSE;
+	if (!fu_common_read_uint16_safe(reply_data, sizeof (reply_data), 4, &read_flash_prog_time, G_BIG_ENDIAN, error))
+		return FALSE;
 
 	if (read_flash_prog_time == 0)
 		read_flash_prog_time = 10;
@@ -576,11 +579,27 @@ fu_kinetic_dp_secure_aux_isp_enable_fw_update_mode (FuKineticDpFirmware *firmwar
 	g_debug ("entering F/W loading mode...");
 
 	/* Send payload size to DPCD_MCA_REPLY_DATA_REG */
-	*(guint32 *)pl_size_data = fu_kinetic_dp_firmware_get_esm_payload_size (firmware);
-	*(guint32 *)&pl_size_data[4] = fu_kinetic_dp_firmware_get_arm_app_code_size (firmware);
-	*(guint16 *)&pl_size_data[8] = (guint16)fu_kinetic_dp_firmware_get_app_init_data_size (firmware);
-	*(guint16 *)&pl_size_data[10] = (guint16)fu_kinetic_dp_firmware_get_cmdb_block_size (firmware) |
-					(fu_kinetic_dp_firmware_get_is_fw_esm_xip_enabled (firmware) << 15);
+	if (!fu_common_write_uint32_safe(pl_size_data, sizeof (pl_size_data), 0,
+					 fu_kinetic_dp_firmware_get_esm_payload_size (firmware),
+					 G_LITTLE_ENDIAN,
+					 error))
+		return FALSE;
+	if (!fu_common_write_uint32_safe(pl_size_data, sizeof (pl_size_data), 4,
+					 fu_kinetic_dp_firmware_get_arm_app_code_size (firmware),
+					 G_LITTLE_ENDIAN,
+					 error))
+		return FALSE;
+	if (!fu_common_write_uint16_safe(pl_size_data, sizeof (pl_size_data), 8,
+					 fu_kinetic_dp_firmware_get_app_init_data_size (firmware),
+					 G_LITTLE_ENDIAN,
+					 error))
+		return FALSE;
+	if (!fu_common_write_uint16_safe(pl_size_data, sizeof (pl_size_data), 10,
+					 (fu_kinetic_dp_firmware_get_is_fw_esm_xip_enabled (firmware) ? (1 << 15) : 0) |
+					 fu_kinetic_dp_firmware_get_cmdb_block_size (firmware),
+					 G_LITTLE_ENDIAN,
+					 error))
+		return FALSE;
 
 	if (!fu_kinetic_dp_secure_aux_isp_write_dpcd_reply_data_reg (connection, pl_size_data, sizeof(pl_size_data), error)) {
 		g_prefix_error (error, "send payload size failed: ");

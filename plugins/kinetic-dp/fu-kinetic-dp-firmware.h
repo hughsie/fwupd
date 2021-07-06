@@ -15,8 +15,8 @@ G_DECLARE_FINAL_TYPE (FuKineticDpFirmware, fu_kinetic_dp_firmware, FU, KINETIC_D
 FuFirmware	*fu_kinetic_dp_firmware_new				(void);
 guint32		 fu_kinetic_dp_firmware_get_esm_payload_size		(FuKineticDpFirmware	*self);
 guint32		 fu_kinetic_dp_firmware_get_arm_app_code_size		(FuKineticDpFirmware	*self);
-guint32		 fu_kinetic_dp_firmware_get_app_init_data_size		(FuKineticDpFirmware	*self);
-guint32		 fu_kinetic_dp_firmware_get_cmdb_block_size		(FuKineticDpFirmware	*self);
+guint16		 fu_kinetic_dp_firmware_get_app_init_data_size		(FuKineticDpFirmware	*self);
+guint16		 fu_kinetic_dp_firmware_get_cmdb_block_size		(FuKineticDpFirmware	*self);
 gboolean	 fu_kinetic_dp_firmware_get_is_fw_esm_xip_enabled	(FuKineticDpFirmware	*self);
 
 typedef enum {

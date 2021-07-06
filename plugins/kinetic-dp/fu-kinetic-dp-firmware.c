@@ -17,8 +17,8 @@ struct _FuKineticDpFirmware {
 	/* TODO: declare as private member */
 	guint32		esm_payload_size;
 	guint32		arm_app_code_size;
-	guint32		app_init_data_size;
-	guint32		cmdb_block_size;
+	guint16		app_init_data_size;
+	guint16		cmdb_block_size;
 
 	gboolean	is_fw_esm_xip_enabled;
 };
@@ -153,14 +153,14 @@ fu_kinetic_dp_firmware_get_arm_app_code_size (FuKineticDpFirmware *self)
 	return self->arm_app_code_size;
 }
 
-guint32
+guint16
 fu_kinetic_dp_firmware_get_app_init_data_size (FuKineticDpFirmware *self)
 {
 	g_return_val_if_fail (FU_KINETIC_DP_FIRMWARE (self), 0);
 	return self->app_init_data_size;
 }
 
-guint32
+guint16
 fu_kinetic_dp_firmware_get_cmdb_block_size (FuKineticDpFirmware *self)
 {
 	g_return_val_if_fail (FU_KINETIC_DP_FIRMWARE (self), 0);
@@ -218,10 +218,10 @@ fu_kinetic_dp_firmware_parse (FuFirmware *firmware,
 	app_fw_payload = g_bytes_new_from_bytes (fw, HEADER_LEN_ISP_DRV_SIZE + isp_drv_payload_size, app_fw_payload_size);
 	buf = g_bytes_get_data (app_fw_payload, &bufsz);
 	if (!kt_dp_get_chip_id_from_fw_buf (buf, bufsz, &chip_id, &fw_bin_flag)) {
-		g_set_error_literal(error,
-				    FWUPD_ERROR,
-				    FWUPD_ERROR_INTERNAL,
-				    "no valid chip ID is found in the firmware");
+		g_set_error_literal (error,
+				     FWUPD_ERROR,
+				     FWUPD_ERROR_INTERNAL,
+				     "no valid chip ID is found in the firmware");
 		return FALSE;
 	}
 
