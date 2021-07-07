@@ -413,6 +413,7 @@ fu_plugin_uefi_capsule_load_config (FuPlugin *plugin, FuDevice *device)
 {
 	gboolean disable_shim;
 	gboolean fallback_removable_path;
+	gboolean use_grub;
 	guint64 sz_reqd = FU_UEFI_COMMON_REQUIRED_ESP_FREE_SPACE;
 	g_autofree gchar *require_esp_free_space = NULL;
 
@@ -427,6 +428,12 @@ fu_plugin_uefi_capsule_load_config (FuPlugin *plugin, FuDevice *device)
 	fu_device_set_metadata_boolean (device,
 					"RequireShimForSecureBoot",
 					!disable_shim);
+
+	/* Use GRUB to load updates */
+	use_grub = fu_plugin_get_config_value_boolean (plugin, "EnableGrubChainLoad");
+	fu_device_set_metadata_boolean (device,
+					"GrubChainLoad",
+					use_grub);
 
 	/* check if using UEFI removable path */
 	fallback_removable_path = fu_plugin_get_config_value_boolean (plugin, "FallbacktoRemovablePath");

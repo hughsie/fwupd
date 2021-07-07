@@ -292,6 +292,163 @@ fu_uefi_copy_asset (const gchar *source, const gchar *target, GError **error)
 	return TRUE;
 }
 
+static gboolean
+fu_uefi_bootmgr_setup_grub (FuDevice *device,
+			    const gchar *esp_path,
+			    const gchar *target_app,
+			    GError **error)
+{
+	const gchar *argv_mkconfig[] = { "", "-o", "/boot/grub/grub.cfg", NULL };
+	const gchar *argv_reboot[] = { "", "fwupd", NULL };
+	g_autofree gchar *grub_mkconfig = NULL;
+	g_autofree gchar *grub_reboot = NULL;
+	g_autofree gchar *grub_target = NULL;
+	g_autofree gchar *localstatedir = fu_common_get_path (FU_PATH_KIND_LOCALSTATEDIR_PKG);
+	g_autofree gchar *output = NULL;
+	g_autoptr(GString) str = g_string_new (NULL);
+
+	/* find grub.conf */
+	if (!g_file_test (argv_mkconfig[2], G_FILE_TEST_EXISTS))
+		argv_mkconfig[2] = "/boot/grub2/grub.cfg";
+	if (!g_file_test (argv_mkconfig[2], G_FILE_TEST_EXISTS)) {
+		g_set_error_literal (error,
+				     G_IO_ERROR,
+				     G_IO_ERROR_FAILED,
+				     "could not find grub.conf");
+		return FALSE;
+	}
+
+	/* find grub-mkconfig */
+	grub_mkconfig = fu_common_find_program_in_path ("grub-mkconfig", NULL);
+	if (grub_mkconfig == NULL)
+		grub_mkconfig = fu_common_find_program_in_path ("grub2-mkconfig", NULL);
+	if (grub_mkconfig == NULL) {
+		g_set_error_literal (error,
+				     G_IO_ERROR,
+				     G_IO_ERROR_FAILED,
+				     "could not find grub-mkconfig");
+		return FALSE;
+	}
+
+	/* find grub-reboot */
+	grub_reboot = fu_common_find_program_in_path ("grub-reboot", NULL);
+	if (grub_reboot == NULL)
+		grub_reboot = fu_common_find_program_in_path ("grub2-reboot", NULL);
+	if (grub_reboot == NULL) {
+		g_set_error_literal (error,
+				     G_IO_ERROR,
+				     G_IO_ERROR_FAILED,
+				     "could not find grub-reboot");
+		return FALSE;
+	}
+
+	/* replace ESP info in conf with what we detected */
+	g_string_append_printf(str, "EFI_PATH=%s\n", target_app);
+	fu_common_string_replace (str, esp_path, "");
+	g_string_append_printf(str, "ESP=%s\n", esp_path);
+	grub_target = g_build_filename (localstatedir, "uefi_capsule.conf", NULL);
+	if (!g_file_set_contents (grub_target, str->str, -1, error))
+		return FALSE;
+
+	/* refresh GRUB configuration */
+	argv_mkconfig[0] = grub_mkconfig;
+	if (!g_spawn_sync (NULL, (gchar **) argv_mkconfig, NULL, G_SPAWN_DEFAULT,
+			   NULL, NULL, &output, NULL, NULL, error))
+		return FALSE;
+	g_debug ("%s", output);
+
+	/* make fwupd default */
+	argv_reboot[0] = grub_reboot;
+	if (!g_spawn_sync (NULL, (gchar **) argv_reboot, NULL, G_SPAWN_DEFAULT,
+			   NULL, NULL, NULL, NULL, NULL, error))
+		return FALSE;
+
+	/* success */
+	return TRUE;
+}
+
+static gboolean
+fu_uefi_bootmgr_setup_nvram (FuDevice *device,
+			     const gchar *filepath,
+			     const gchar *argpath,
+			     const gchar *description,
+			     GError **error)
+{
+	gsize loader_sz = 0;
+	gssize opt_size = 0;
+	gssize sz, dp_size = 0;
+	guint32 attributes = LOAD_OPTION_ACTIVE;
+	g_autofree gchar *label = NULL;
+	g_autofree guint16 *loader_str = NULL;
+	g_autofree guint8 *dp_buf = NULL;
+	g_autofree guint8 *opt = NULL;
+
+	/* generate device path for target */
+	sz = efi_generate_file_device_path (dp_buf, dp_size, filepath,
+					    EFIBOOT_OPTIONS_IGNORE_FS_ERROR|
+					    EFIBOOT_ABBREV_HD);
+	if (sz < 0) {
+		g_set_error (error,
+			     G_IO_ERROR,
+			     G_IO_ERROR_FAILED,
+			     "efi_generate_file_device_path(%s) failed",
+			     filepath);
+		return FALSE;
+	}
+
+	/* add the fwupdx64.efi ESP path as the shim loadopt data */
+	dp_size = sz;
+	dp_buf = g_malloc0 (dp_size);
+	if (argpath != NULL) {
+		g_autofree gchar *fwup_fs_basename = g_path_get_basename (argpath);
+		g_autofree gchar *fwup_esp_path = g_strdup_printf ("\\%s", fwup_fs_basename);
+		loader_str = fu_uft8_to_ucs2 (fwup_esp_path, -1);
+		loader_sz = fu_ucs2_strlen (loader_str, -1) * 2;
+		if (loader_sz)
+			loader_sz += 2;
+	}
+
+	sz = efi_generate_file_device_path (dp_buf, dp_size, filepath,
+					    EFIBOOT_OPTIONS_IGNORE_FS_ERROR|
+					    EFIBOOT_ABBREV_HD);
+	if (sz != dp_size) {
+		g_set_error (error,
+			     G_IO_ERROR,
+			     G_IO_ERROR_FAILED,
+			     "efi_generate_file_device_path(%s) failed",
+			     filepath);
+		return FALSE;
+	}
+
+	label = g_strdup (description);
+	sz = efi_loadopt_create (opt, opt_size, attributes,
+				 (efidp)dp_buf, dp_size,
+				 (guint8 *)label,
+				 (guint8 *)loader_str, loader_sz);
+	if (sz < 0) {
+		g_set_error (error,
+			     G_IO_ERROR,
+			     G_IO_ERROR_FAILED,
+			     "efi_loadopt_create(%s) failed",
+			     label);
+		return FALSE;
+	}
+	opt = g_malloc0 (sz);
+	opt_size = sz;
+	sz = efi_loadopt_create (opt, opt_size, attributes,
+				 (efidp)dp_buf, dp_size,
+				 (guint8 *)label,
+				 (guint8 *)loader_str, loader_sz);
+	if (sz != opt_size) {
+		g_set_error (error,
+			     G_IO_ERROR,
+			     G_IO_ERROR_FAILED,
+			     "loadopt size was unreasonable.");
+		return FALSE;
+	}
+	return fu_uefi_setup_bootnext_with_dp (dp_buf, opt, opt_size, error);
+}
+
 gboolean
 fu_uefi_bootmgr_bootnext (FuDevice *device,
 			   const gchar *esp_path,
@@ -302,16 +459,8 @@ fu_uefi_bootmgr_bootnext (FuDevice *device,
 	const gchar *filepath;
 	gboolean use_fwup_path = TRUE;
 	gboolean secure_boot = FALSE;
-	gsize loader_sz = 0;
-	gssize opt_size = 0;
-	gssize sz, dp_size = 0;
-	guint32 attributes = LOAD_OPTION_ACTIVE;
-	g_autofree guint16 *loader_str = NULL;
-	g_autofree gchar *label = NULL;
 	g_autofree gchar *shim_app = NULL;
 	g_autofree gchar *shim_cpy = NULL;
-	g_autofree guint8 *dp_buf = NULL;
-	g_autofree guint8 *opt = NULL;
 	g_autofree gchar *source_app = NULL;
 	g_autofree gchar *target_app = NULL;
 
@@ -374,72 +523,13 @@ fu_uefi_bootmgr_bootnext (FuDevice *device,
 			return FALSE;
 	}
 
-	/* no shim, so use this directly */
-	if (use_fwup_path)
-		filepath = target_app;
+	/* we are using GRUB instead of NVRAM variables */
+	if (flags & FU_UEFI_BOOTMGR_FLAG_GRUB_CHAINLOAD)
+		return fu_uefi_bootmgr_setup_grub (device, esp_path, target_app, error);
 
-	/* generate device path for target */
-	sz = efi_generate_file_device_path (dp_buf, dp_size, filepath,
-					    EFIBOOT_OPTIONS_IGNORE_FS_ERROR|
-					    EFIBOOT_ABBREV_HD);
-	if (sz < 0) {
-		g_set_error (error,
-			     G_IO_ERROR,
-			     G_IO_ERROR_FAILED,
-			     "efi_generate_file_device_path(%s) failed",
-			     filepath);
-		return FALSE;
-	}
-
-	/* add the fwupdx64.efi ESP path as the shim loadopt data */
-	dp_size = sz;
-	dp_buf = g_malloc0 (dp_size);
-	if (!use_fwup_path) {
-		g_autofree gchar *fwup_fs_basename = g_path_get_basename (target_app);
-		g_autofree gchar *fwup_esp_path = g_strdup_printf ("\\%s", fwup_fs_basename);
-		loader_str = fu_uft8_to_ucs2 (fwup_esp_path, -1);
-		loader_sz = fu_ucs2_strlen (loader_str, -1) * 2;
-		if (loader_sz)
-			loader_sz += 2;
-	}
-
-	sz = efi_generate_file_device_path (dp_buf, dp_size, filepath,
-					    EFIBOOT_OPTIONS_IGNORE_FS_ERROR|
-					    EFIBOOT_ABBREV_HD);
-	if (sz != dp_size) {
-		g_set_error (error,
-			     G_IO_ERROR,
-			     G_IO_ERROR_FAILED,
-			     "efi_generate_file_device_path(%s) failed",
-			     filepath);
-		return FALSE;
-	}
-
-	label = g_strdup (description);
-	sz = efi_loadopt_create (opt, opt_size, attributes,
-				 (efidp)dp_buf, dp_size,
-				 (guint8 *)label,
-				 (guint8 *)loader_str, loader_sz);
-	if (sz < 0) {
-		g_set_error (error,
-			     G_IO_ERROR,
-			     G_IO_ERROR_FAILED,
-			     "efi_loadopt_create(%s) failed",
-			     label);
-		return FALSE;
-	}
-	opt = g_malloc0 (sz);
-	opt_size = sz;
-	sz = efi_loadopt_create (opt, opt_size, attributes,
-				 (efidp)dp_buf, dp_size,
-				 (guint8 *)label,
-				 (guint8 *)loader_str, loader_sz);
-	if (sz != opt_size) {
-		g_set_error (error,
-			     G_IO_ERROR,
-			     G_IO_ERROR_FAILED,
-			     "loadopt size was unreasonable.");
-		return FALSE;
-	}
-	return fu_uefi_setup_bootnext_with_dp (dp_buf, opt, opt_size, error);
+	return fu_uefi_bootmgr_setup_nvram (device,
+					    use_fwup_path ? target_app : filepath,
+					    use_fwup_path ? NULL : target_app,
+					    description,
+					    error);
 }

@@ -7,3 +7,5 @@ rm /etc/systemd/system/fwupd-activate.service -f
 systemctl daemon-reload
 #msr module
 rm /usr/lib/modules-load.d/fwupd-msr.conf -f
+#optional grub configuration
+rm /etc/grub.d/35_fwupd -f

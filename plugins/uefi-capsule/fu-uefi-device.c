@@ -134,6 +134,9 @@ fu_uefi_device_to_string (FuDevice *device, guint idt, GString *str)
 				    fu_device_get_metadata_integer (device, "RequireESPFreeSpace"));
 	fu_common_string_append_kb (str, idt, "RequireShimForSecureBoot",
 				    fu_device_get_metadata_boolean (device, "RequireShimForSecureBoot"));
+	fu_common_string_append_kb (str, idt, "GrubChainLoad",
+				    fu_device_get_metadata_boolean (device, "GrubChainLoad"));
+
 }
 
 static void
@@ -601,6 +604,11 @@ fu_uefi_device_write_firmware (FuDevice *device,
 		flags |= FU_UEFI_BOOTMGR_FLAG_USE_SHIM_FOR_SB;
 	if (fu_device_has_private_flag (device, FU_UEFI_DEVICE_FLAG_USE_SHIM_UNIQUE))
 		flags |= FU_UEFI_BOOTMGR_FLAG_USE_SHIM_UNIQUE;
+	if (fu_device_get_metadata_boolean (device, "GrubChainLoad")) {
+		if (flags)
+			g_debug ("Grub chainloading overrode all shim configuration");
+		flags = FU_UEFI_BOOTMGR_FLAG_GRUB_CHAINLOAD;
+	}
 
 	/* some legacy devices use the old name to deduplicate boot entries */
 	if (fu_device_has_private_flag (device, FU_UEFI_DEVICE_FLAG_USE_LEGACY_BOOTMGR_DESC))

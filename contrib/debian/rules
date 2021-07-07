@@ -64,6 +64,9 @@ override_dh_install:
 	[ ! -d debian/tmp/usr/lib/modules-load.d ] || dh_install -pfwupd usr/lib/modules-load.d
 	[ ! -d debian/tmp/lib/modules-load.d ] || dh_install -pfwupd lib/modules-load.d
 	dh_missing -a --fail-missing
+	#enable GRUB instead of shim
+	[ ! -f debian/tmp/etc/fwupd/uefi_capsule.conf ] || sed -i 's,^#EnableGrubChainLoad=.*,EnableGrubChainLoad=true,' \
+								debian/tmp/etc/fwupd/uefi_capsule.conf
 
 	#this is placed in fwupd-tests
 	rm -f debian/fwupd/usr/lib/*/fwupd-plugins-3/libfu_plugin_test.so

@@ -1,0 +1,21 @@
+#! /bin/bash
+# SPDX-License-Identifier: LGPL-2.1+
+set -e
+
+. "$pkgdatadir/grub-mkconfig_lib"
+
+if [ -f @localstatedir@/lib/fwupd/uefi_capsule.conf ] &&
+   ls /sys/firmware/efi/efivars/fwupd-*-0abba7dc-e516-4167-bbf5-4d9d1c739416 2>&1 1>/dev/null; then
+      source @localstatedir@/lib/fwupd/uefi_capsule.conf
+      if [ "${EFI_PATH}" != "" ] && [ "${ESP}" != "" ]; then
+      echo "Adding Linux Firmware Updater entry" >&2
+cat << EOF
+menuentry 'Linux Firmware Updater' \$menuentry_id_option 'fwupd' {
+EOF
+      prepare_grub_to_access_device `${grub_probe} --target=device \${ESP}` | sed -e "s/^/\t/"
+cat << EOF
+	chainloader ${EFI_PATH}
+}
+EOF
+      fi
+fi

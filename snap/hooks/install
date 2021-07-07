@@ -24,3 +24,5 @@ systemctl enable fwupd-activate
 systemctl start fwupd-activate
 #kernel modules
 install_if_missing usr/lib/modules-load.d/fwupd-msr.conf /
+#optional grub configuration
+install_if_missing etc/grub.d/35_fwupd /
