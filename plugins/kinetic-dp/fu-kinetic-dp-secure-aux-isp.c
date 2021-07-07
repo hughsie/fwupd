@@ -38,7 +38,8 @@
 #define DPCD_SIZE_KT_AUX_WIN			0x8000ul	/* 0x80000ul ~ 0x87FFF, 32 KB	*/
 #define DPCD_ADDR_KT_AUX_WIN_END		(DPCD_ADDR_KT_AUX_WIN +  DPCD_SIZE_KT_AUX_WIN - 1)
 
-#define INIT_CRC16				0x1021
+#define CRC_INIT_KT_PROP_CRC16			0x1021		/* init value for Kinetic's proprietary CRC-16 calculation */
+#define CRC_POLY_KT_PROP_CRC16			0x1021		/* polynomial for Kinetic's proprietary CRC-16 calculation */
 
 /* each device should have a corresponding ISP info instance */
 static guint32 isp_payload_procd_size;
@@ -50,34 +51,6 @@ static guint16 flash_id;
 static guint16 flash_size;
 
 static gboolean is_isp_secure_auth_mode;
-
-static guint16
-_gen_crc16 (guint16 accum, guint8 data_in)
-{
-	guint8 i, flag;
-
-	for (i = 8; i; i--) {
-		flag = data_in ^ (accum >> 8);
-		accum <<= 1;
-
-		if (flag & 0x80)
-		    accum ^= INIT_CRC16;
-
-		data_in <<= 1;
-	}
-
-	return accum;
-}
-
-static void
-_accumulate_crc16 (guint16 *prev_crc16, const guint8 *in_data_ptr, guint16 data_size)
-{
-	guint16 i;
-
-	for (i = 0; i < data_size; i++) {
-		*prev_crc16 = _gen_crc16 (*prev_crc16, in_data_ptr[i]);
-	}
-}
 
 static gboolean
 fu_kinetic_dp_secure_aux_isp_read_param_reg (FuKineticDpConnection *self,
@@ -320,6 +293,45 @@ fu_kinetic_dp_secure_aux_isp_enter_code_loading_mode (FuKineticDpConnection *sel
 	return TRUE;
 }
 
+/**
+ * fu_kinetic_dp_secure_aux_isp_crc16:
+ * @buf: memory buffer
+ * @bufsz: size of @buf
+ *
+ * Returns the cyclic redundancy check value for the given memory buffer.
+ * This is a proprietary implementation only can be used in Kinetic's
+ * Secure AUX-ISP protocol
+ *
+ * Returns: CRC value
+ **/
+static guint16
+fu_kinetic_dp_secure_aux_isp_crc16 (const guint8 *buf, guint16 bufsize)
+{
+	guint16 crc = CRC_INIT_KT_PROP_CRC16;
+
+	for (guint16 i = 0; i < bufsize; i++) {
+		guint16 crc_tmp;
+		guint8 data, flag;
+
+		crc_tmp = crc;
+		data = buf[i];
+
+		for (guint8 j = 8; j; j--) {
+			flag = data ^ (crc_tmp >> 8);
+			crc_tmp <<= 1;
+
+			if (flag & 0x80)
+				crc_tmp ^= CRC_POLY_KT_PROP_CRC16;
+
+			data <<= 1;
+		}
+
+		crc = crc_tmp;
+	}
+
+	return crc;
+}
+
 static gboolean
 fu_kinetic_dp_secure_aux_isp_send_payload (FuKineticDpConnection *connection,
 					   const guint8 *payload,
@@ -328,69 +340,64 @@ fu_kinetic_dp_secure_aux_isp_send_payload (FuKineticDpConnection *connection,
 					   gint32 wait_interval_ms,
 					   GError **error)
 {
-	guint32 aux_win_addr = DPCD_ADDR_KT_AUX_WIN;
-	guint8 temp_buf[16];
 	guint8 *remain_payload = (guint8 *)payload;
-	guint32 remain_len = payload_size;
-	guint32 crc16 = INIT_CRC16;
+	guint32 remain_payload_len = payload_size;
+	guint32 chunk_crc16;
+	guint32 chunk_len;
+	guint32 chunk_remaian_len;
+	guint32 chunk_offset;
 	guint8 status;
 
-	while (remain_len > 0) {
-		guint8 aux_wr_size = (remain_len < 16) ? ((guint8)remain_len) : 16;
+	while (remain_payload_len > 0) {
+		chunk_len = (remain_payload_len >= DPCD_SIZE_KT_AUX_WIN) ? DPCD_SIZE_KT_AUX_WIN : remain_payload_len;
 
-		if (!fu_memcpy_safe (temp_buf, 16, 0x0,			/* dst */
-				     remain_payload, remain_len, 0x0,	/* src */
-				     aux_wr_size, error))		/* size */
-			return FALSE;
+		/* send a maximum 32KB chunk of payload to AUX window */
+		chunk_remaian_len = chunk_len;
+		chunk_offset = 0;
 
-		_accumulate_crc16 ((guint16 *)&crc16, temp_buf, aux_wr_size);
-
-		/* put accumulated CRC16 of current 32KB chunk to DPCD_REPLY_DATA_REG */
-		if ((aux_win_addr + aux_wr_size) > DPCD_ADDR_KT_AUX_WIN_END ||
-		    (remain_len - aux_wr_size) == 0) {
-			if (!fu_kinetic_dp_secure_aux_isp_write_dpcd_reply_data_reg (connection,
-										     (guint8 *)&crc16,
-										     sizeof(crc16),
-										     error)) {
-				g_prefix_error(error, "failed to send CRC16 to reply data register: ");
+		while (chunk_remaian_len > 0) {
+			/* maximum length of each AUX write transaction is 16 bytes */
+			guint32 aux_wr_size = (chunk_remaian_len >= 16) ? 16 : chunk_remaian_len;
+			if (!fu_kinetic_dp_connection_write (connection,
+							     DPCD_ADDR_KT_AUX_WIN + chunk_offset,
+							     remain_payload + chunk_offset,
+							     aux_wr_size,
+							     error)) {
+				g_prefix_error (error,
+						"failed to AUX write at payload 0x%lX: ",
+						(guint64)((remain_payload + chunk_offset) - payload));
 				return FALSE;
 			}
 
-			/* reset to initial CRC16 value for new chunk */
-			crc16 = INIT_CRC16;
+			chunk_offset += aux_wr_size;
+			chunk_remaian_len -= aux_wr_size;
 		}
 
-		/* send payload in each AUX write transaction whose maximum length is 16 bytes */
-		if (!fu_kinetic_dp_connection_write (connection,
-						     aux_win_addr,
-						     temp_buf,
-						     aux_wr_size,
-						     error)) {
-			g_prefix_error (error,
-					"failed to send payload on AUX write %u: ",
-					isp_procd_size);
+		/* send the CRC16 of current 32KB chunk to DPCD_REPLY_DATA_REG */
+		chunk_crc16 = (guint32) fu_kinetic_dp_secure_aux_isp_crc16(remain_payload, chunk_len);
+		if (!fu_kinetic_dp_secure_aux_isp_write_dpcd_reply_data_reg (connection,
+									     (guint8 *)&chunk_crc16,
+									     sizeof (chunk_crc16),
+									     error)) {
+			g_prefix_error(error, "failed to send CRC16 to reply data register: ");
 			return FALSE;
 		}
 
-		remain_payload += aux_wr_size;
-		remain_len -= aux_wr_size;
-		aux_win_addr += aux_wr_size;
-		isp_procd_size += aux_wr_size;
-		isp_payload_procd_size += aux_wr_size;
-
-		if ((aux_win_addr > DPCD_ADDR_KT_AUX_WIN_END) || (remain_len == 0)) {
-			/* notify that a 32KB chunk of payload has been sent to AUX window */
-			if (!fu_kinetic_dp_secure_aux_isp_send_kt_prop_cmd (connection,
-									    KT_DPCD_CMD_CHUNK_DATA_PROCESSED,
-									    wait_time_ms,
-									    wait_interval_ms,
-									    &status,
-									    error))
-				return FALSE;
-
-			/* reset AUX window write address to start address */
-			aux_win_addr = DPCD_ADDR_KT_AUX_WIN;
+		/* notify that a chunk of payload has been sent to AUX window */
+		if (!fu_kinetic_dp_secure_aux_isp_send_kt_prop_cmd (connection,
+								    KT_DPCD_CMD_CHUNK_DATA_PROCESSED,
+								    wait_time_ms,
+								    wait_interval_ms,
+								    &status,
+								    error)) {
+			g_prefix_error (error, "target failed to process payload chunk: ");
+			return FALSE;
 		}
+
+		remain_payload += chunk_len;
+		remain_payload_len -= chunk_len;
+		isp_procd_size += chunk_len;
+		isp_payload_procd_size += chunk_len;
 	}
 
 	return TRUE;
