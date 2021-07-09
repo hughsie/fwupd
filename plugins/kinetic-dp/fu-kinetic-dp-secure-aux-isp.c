@@ -76,7 +76,7 @@ fu_kinetic_dp_secure_aux_isp_write_kt_prop_cmd (FuKineticDpConnection *connectio
 
 	if (!fu_kinetic_dp_connection_write (connection,
 					     DPCD_ADDR_FLOAT_CMD_STATUS_REG,
-					     &cmd_id, sizeof (cmd_id),
+					     &cmd_id, sizeof(cmd_id),
 					     error)) {
 		g_prefix_error (error, "failed to write DPCD_KT_CMD_STATUS_REG: ");
 		return FALSE;
@@ -93,7 +93,7 @@ fu_kinetic_dp_secure_aux_isp_clear_kt_prop_cmd (FuKineticDpConnection *connectio
 
 	if (!fu_kinetic_dp_connection_write (connection,
 					     DPCD_ADDR_FLOAT_CMD_STATUS_REG,
-					     &cmd_id, sizeof (cmd_id),
+					     &cmd_id, sizeof(cmd_id),
 					     error)) {
 		g_prefix_error (error, "failed to write DPCD_KT_CMD_STATUS_REG: ");
 		return FALSE;
@@ -279,7 +279,7 @@ fu_kinetic_dp_secure_aux_isp_enter_code_loading_mode (FuKineticDpConnection *sel
 	/* Update payload size to DPCD reply data reg first */
 	if (!fu_kinetic_dp_secure_aux_isp_write_dpcd_reply_data_reg (self,
 								     (guint8 *) &code_size,
-								     sizeof (code_size),
+								     sizeof(code_size),
 								     error))
 		return FALSE;
 
@@ -374,10 +374,10 @@ fu_kinetic_dp_secure_aux_isp_send_payload (FuKineticDpConnection *connection,
 		}
 
 		/* send the CRC16 of current 32KB chunk to DPCD_REPLY_DATA_REG */
-		chunk_crc16 = (guint32) fu_kinetic_dp_secure_aux_isp_crc16(remain_payload, chunk_len);
+		chunk_crc16 = (guint32) fu_kinetic_dp_secure_aux_isp_crc16 (remain_payload, chunk_len);
 		if (!fu_kinetic_dp_secure_aux_isp_write_dpcd_reply_data_reg (connection,
 									     (guint8 *)&chunk_crc16,
-									     sizeof (chunk_crc16),
+									     sizeof(chunk_crc16),
 									     error)) {
 			g_prefix_error(error, "failed to send CRC16 to reply data register: ");
 			return FALSE;
@@ -495,18 +495,21 @@ fu_kinetic_dp_secure_aux_isp_execute_isp_drv (FuKineticDpConnection *connection,
 
 	if (!fu_kinetic_dp_secure_aux_isp_read_dpcd_reply_data_reg (connection,
 								    reply_data,
-								    sizeof (reply_data),
+								    sizeof(reply_data),
 								    &read_len,
 								    error)) {
 		g_prefix_error (error, "failed to read flash ID and size: ");
 		return FALSE;
 	}
 
-	if (!fu_common_read_uint16_safe(reply_data, sizeof (reply_data), 0, &flash_id, G_BIG_ENDIAN, error))
+	if (!fu_common_read_uint16_safe (reply_data, sizeof(reply_data), 0,
+					 &flash_id, G_BIG_ENDIAN, error))
 		return FALSE;
-	if (!fu_common_read_uint16_safe(reply_data, sizeof (reply_data), 2, &flash_size, G_BIG_ENDIAN, error))
+	if (!fu_common_read_uint16_safe (reply_data, sizeof(reply_data), 2,
+					 &flash_size, G_BIG_ENDIAN, error))
 		return FALSE;
-	if (!fu_common_read_uint16_safe(reply_data, sizeof (reply_data), 4, &read_flash_prog_time, G_BIG_ENDIAN, error))
+	if (!fu_common_read_uint16_safe (reply_data, sizeof(reply_data), 4,
+					 &read_flash_prog_time, G_BIG_ENDIAN, error))
 		return FALSE;
 
 	if (read_flash_prog_time == 0)
@@ -586,26 +589,26 @@ fu_kinetic_dp_secure_aux_isp_enable_fw_update_mode (FuKineticDpFirmware *firmwar
 	g_debug ("entering F/W loading mode...");
 
 	/* Send payload size to DPCD_MCA_REPLY_DATA_REG */
-	if (!fu_common_write_uint32_safe(pl_size_data, sizeof (pl_size_data), 0,
-					 fu_kinetic_dp_firmware_get_esm_payload_size (firmware),
-					 G_LITTLE_ENDIAN,
-					 error))
+	if (!fu_common_write_uint32_safe (pl_size_data, sizeof(pl_size_data), 0,
+					  fu_kinetic_dp_firmware_get_esm_payload_size (firmware),
+					  G_LITTLE_ENDIAN,
+					  error))
 		return FALSE;
-	if (!fu_common_write_uint32_safe(pl_size_data, sizeof (pl_size_data), 4,
-					 fu_kinetic_dp_firmware_get_arm_app_code_size (firmware),
-					 G_LITTLE_ENDIAN,
-					 error))
+	if (!fu_common_write_uint32_safe (pl_size_data, sizeof(pl_size_data), 4,
+					  fu_kinetic_dp_firmware_get_arm_app_code_size (firmware),
+					  G_LITTLE_ENDIAN,
+					  error))
 		return FALSE;
-	if (!fu_common_write_uint16_safe(pl_size_data, sizeof (pl_size_data), 8,
-					 fu_kinetic_dp_firmware_get_app_init_data_size (firmware),
-					 G_LITTLE_ENDIAN,
-					 error))
+	if (!fu_common_write_uint16_safe (pl_size_data, sizeof(pl_size_data), 8,
+					  fu_kinetic_dp_firmware_get_app_init_data_size (firmware),
+					  G_LITTLE_ENDIAN,
+					  error))
 		return FALSE;
-	if (!fu_common_write_uint16_safe(pl_size_data, sizeof (pl_size_data), 10,
-					 (fu_kinetic_dp_firmware_get_is_fw_esm_xip_enabled (firmware) ? (1 << 15) : 0) |
-					 fu_kinetic_dp_firmware_get_cmdb_block_size (firmware),
-					 G_LITTLE_ENDIAN,
-					 error))
+	if (!fu_common_write_uint16_safe (pl_size_data, sizeof(pl_size_data), 10,
+					  (fu_kinetic_dp_firmware_get_is_fw_esm_xip_enabled (firmware) ? (1 << 15) : 0) |
+					   fu_kinetic_dp_firmware_get_cmdb_block_size (firmware),
+					  G_LITTLE_ENDIAN,
+					  error))
 		return FALSE;
 
 	if (!fu_kinetic_dp_secure_aux_isp_write_dpcd_reply_data_reg (connection, pl_size_data, sizeof(pl_size_data), error)) {
@@ -791,7 +794,7 @@ fu_kinetic_dp_secure_aux_isp_get_flash_bank_idx (FuKineticDpConnection *connecti
 	guint8 res = BANK_NONE;
 
 	if (!fu_kinetic_dp_aux_dpcd_read_oui (connection,
-					      prev_src_oui, sizeof (prev_src_oui),
+					      prev_src_oui, sizeof(prev_src_oui),
 					      error))
 		return BANK_NONE;
 
@@ -827,7 +830,7 @@ fu_kinetic_dp_secure_aux_isp_enable_aux_forward (FuKineticDpConnection *connecti
 	cmd_id = (guint8)target_port;
 	if (!fu_kinetic_dp_connection_write (connection,
 					     DPCD_ADDR_FLOAT_PARAM_REG,
-					     &cmd_id, sizeof (cmd_id),
+					     &cmd_id, sizeof(cmd_id),
 					     error))
 		return FALSE;
 
@@ -841,7 +844,7 @@ fu_kinetic_dp_secure_aux_isp_enable_aux_forward (FuKineticDpConnection *connecti
 	cmd_id = KT_DPCD_CMD_STS_NONE;
 	fu_kinetic_dp_connection_write (connection,
 					DPCD_ADDR_FLOAT_CMD_STATUS_REG,
-					&cmd_id, sizeof (cmd_id),
+					&cmd_id, sizeof(cmd_id),
 					error);
 
 	return ret;
@@ -868,7 +871,7 @@ fu_kinetic_dp_secure_aux_isp_disable_aux_forward (FuKineticDpConnection *connect
 	cmd_id = KT_DPCD_CMD_STS_NONE;
 	fu_kinetic_dp_connection_write (connection,
 					DPCD_ADDR_FLOAT_CMD_STATUS_REG,
-					&cmd_id, sizeof (cmd_id),
+					&cmd_id, sizeof(cmd_id),
 					error);
 
 	return ret;

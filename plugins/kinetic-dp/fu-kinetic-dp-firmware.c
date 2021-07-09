@@ -68,16 +68,15 @@ kt_dp_get_chip_id_from_fw_buf (const guint8 *fw_bin_buf,
 			       KtChipId *chip_id,
 			       guint16 *fw_bin_flag)
 {
-	guint32 num = sizeof (kt_dp_app_sign_id_table) / sizeof (kt_dp_app_sign_id_table[0]);
+	guint32 num = G_N_ELEMENTS(kt_dp_app_sign_id_table);
 	for (guint32 i = 0; i < num; i++) {
 		guint32 app_id_offset = kt_dp_app_sign_id_table[i].app_id_offset;
 
 		if ((app_id_offset + APP_ID_STR_LEN) < fw_bin_size) {
 			if (memcmp (&fw_bin_buf[app_id_offset], kt_dp_app_sign_id_table[i].app_id_str, APP_ID_STR_LEN) == 0) {
-				/* Found corresponding app ID */
+				/* found corresponding app ID */
 				*chip_id = kt_dp_app_sign_id_table[i].chip_id;
 				*fw_bin_flag = kt_dp_app_sign_id_table[i].fw_bin_flag;
-
 				return TRUE;
 			}
 		}
