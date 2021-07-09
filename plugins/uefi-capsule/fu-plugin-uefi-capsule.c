@@ -366,6 +366,50 @@ fu_plugin_uefi_capsule_update_splash (FuPlugin *plugin, FuDevice *device, GError
 	return fu_plugin_uefi_capsule_write_splash_data (plugin, device, image_bmp, error);
 }
 
+static gboolean
+fu_capsule_update_on_disk (FuDevice *device, GError **error)
+{
+	g_autofree guint64 *os_indications_supported = NULL;
+	g_autofree guint64 *os_indications = NULL;
+	guint32 attr;
+	gsize os_ind_size = 0;
+
+	if (fu_device_get_metadata_boolean (device, "DisableCapsuleUpdateOnDisk"))
+		return FALSE;
+
+	/* check for capsuleupdate ondisk */
+	if (!fu_efivar_get_data (FU_EFIVAR_GUID_EFI_GLOBAL, "OsIndicationsSupported",
+				 (guint8 **) &os_indications_supported,
+				 &os_ind_size, &attr, error))
+		g_debug ("Can't Read OsIndicationsSupported");
+	if (*os_indications_supported & EFI_OS_INDICATIONS_FILE_CAPSULE_DELIVERY_SUPPORTED) {
+		if (!fu_efivar_get_data (FU_EFIVAR_GUID_EFI_GLOBAL, "OsIndications",
+				 (guint8 **) &os_indications,
+				 &os_ind_size, &attr, error)) {
+			*os_indications = 0;
+			g_debug ("Failed to read OsIndications");
+		}
+		//if u-boot
+		//cp capsule;
+		//return TRUE;
+		*os_indications |= EFI_OS_INDICATIONS_FILE_CAPSULE_DELIVERY_SUPPORTED;
+		if (!fu_efivar_set_data (FU_EFIVAR_GUID_EFI_GLOBAL,
+					 "OsIndications", (guint8 *) os_indications,
+					 os_ind_size,
+					 FU_EFIVAR_ATTR_NON_VOLATILE |
+					 FU_EFIVAR_ATTR_BOOTSERVICE_ACCESS |
+					 FU_EFIVAR_ATTR_RUNTIME_ACCESS,
+					 error)) {
+			g_prefix_error (error,
+					"Could not set OsIndications variable");
+			return FALSE;
+		}
+		//cp capsule
+		return TRUE;
+	}
+	return FALSE;
+}
+
 gboolean
 fu_plugin_update (FuPlugin *plugin,
 		  FuDevice *device,
@@ -398,6 +442,9 @@ fu_plugin_update (FuPlugin *plugin,
 	str = _("Installing firmware update…");
 	g_assert (str != NULL);
 
+	if (fu_capsule_update_on_disk(device, error))
+			return TRUE;
+
 	/* perform the update */
 	fu_device_set_status (device, FWUPD_STATUS_SCHEDULING);
 	if (!fu_plugin_uefi_capsule_update_splash (plugin, device, &error_splash)) {
@@ -413,6 +460,7 @@ fu_plugin_uefi_capsule_load_config (FuPlugin *plugin, FuDevice *device)
 {
 	gboolean disable_shim;
 	gboolean fallback_removable_path;
+	gboolean capsule_on_disk;
 	guint64 sz_reqd = FU_UEFI_COMMON_REQUIRED_ESP_FREE_SPACE;
 	g_autofree gchar *require_esp_free_space = NULL;
 
@@ -433,6 +481,12 @@ fu_plugin_uefi_capsule_load_config (FuPlugin *plugin, FuDevice *device)
 	fu_device_set_metadata_boolean (device,
 					"FallbacktoRemovablePath",
 					fallback_removable_path);
+
+	/* delivery of Capsules via file on Mass Storage device */
+	capsule_on_disk = fu_plugin_get_config_value_boolean (plugin, "DisableCapsuleUpdateOnDisk");
+	fu_device_set_metadata_boolean (device,
+					"DisableCapsuleUpdateOnDisk",
+					capsule_on_disk);
 }
 
 static void
