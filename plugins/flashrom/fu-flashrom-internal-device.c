@@ -11,12 +11,20 @@
 
 #include <libflashrom.h>
 
+#define HSFS_FDOPSS (1 << 13)
+
 struct _FuFlashromInternalDevice {
 	FuFlashromDevice		 parent_instance;
 };
 
-G_DEFINE_TYPE (FuFlashromInternalDevice, fu_flashrom_internal_device,
+typedef struct {
+	gboolean	me_region_flashable;
+} FuFlashromInternalDevicePrivate;
+
+G_DEFINE_TYPE_WITH_PRIVATE (FuFlashromInternalDevice, fu_flashrom_internal_device,
 	       FU_TYPE_FLASHROM_DEVICE)
+
+#define GET_PRIVATE(o) (fu_flashrom_internal_device_get_instance_private (o))
 
 static void
 fu_flashrom_internal_device_init (FuFlashromInternalDevice *self)
@@ -31,6 +39,38 @@ fu_flashrom_internal_device_init (FuFlashromInternalDevice *self)
 	fu_device_set_logical_id (FU_DEVICE (self), "bios");
 	fu_device_set_version_format (FU_DEVICE (self), FWUPD_VERSION_FORMAT_TRIPLET);
 	fu_device_add_icon (FU_DEVICE (self), "computer");
+}
+
+static void
+set_fdopss_lock_state (FuDevice *device, GError **error)
+{
+	const guint16 hsfs = flashrom_tuxedo_get_hsfs();
+	FuFlashromInternalDevicePrivate *priv =
+		GET_PRIVATE (FU_FLASHROM_INTERNAL_DEVICE (device));
+	if (hsfs & HSFS_FDOPSS) {
+		fu_device_add_flag (device, FWUPD_DEVICE_FLAG_LOCKED);
+		fu_device_add_flag (device, FWUPD_DEVICE_FLAG_NEEDS_SHUTDOWN);
+		fu_device_remove_flag (device, FWUPD_DEVICE_FLAG_NEEDS_REBOOT);
+	} else if (hsfs > 0) {
+		priv->me_region_flashable = true;
+	}
+}
+
+static gboolean
+fu_flashrom_internal_device_set_quirk_kv (FuDevice *device,
+				 const gchar *key,
+				 const gchar *value,
+				 GError **error)
+{
+	if (g_strcmp0 (key, "FlashromNeedsFdopssUnlock") == 0) {
+		set_fdopss_lock_state (device);
+		return TRUE;
+	}
+	g_set_error_literal (error,
+			     G_IO_ERROR,
+			     G_IO_ERROR_NOT_SUPPORTED,
+			     "not supported");
+	return FALSE;
 }
 
 static gboolean
@@ -78,6 +118,8 @@ fu_flashrom_internal_device_write_firmware (FuDevice *device,
 					    GError **error)
 {
 	FuFlashromDevice *parent = FU_FLASHROM_DEVICE (device);
+	FuFlashromInternalDevicePrivate *priv =
+		GET_PRIVATE (FU_FLASHROM_INTERNAL_DEVICE (device));
 	struct flashrom_flashctx *flashctx = fu_flashrom_device_get_flashctx (parent);
 	gsize flash_size = fu_flashrom_device_get_flash_size (parent);
 	struct flashrom_layout *layout;
@@ -100,6 +142,15 @@ fu_flashrom_internal_device_write_firmware (FuDevice *device,
 
 	/* include bios region for safety reasons */
 	if (flashrom_layout_include_region (layout, "bios")) {
+		g_set_error_literal (error,
+				     FWUPD_ERROR,
+				     FWUPD_ERROR_NOT_SUPPORTED,
+				     "invalid region name");
+		return FALSE;
+	}
+
+	/* include me region for devices with fdopss override functionality */
+	if (priv->me_region_flashable && flashrom_layout_include_region (layout, "me")) {
 		g_set_error_literal (error,
 				     FWUPD_ERROR,
 				     FWUPD_ERROR_NOT_SUPPORTED,
@@ -149,6 +200,7 @@ fu_flashrom_internal_device_class_init (FuFlashromInternalDeviceClass *klass)
 	FuDeviceClass *klass_device = FU_DEVICE_CLASS (klass);
 	klass_device->prepare = fu_flashrom_internal_device_prepare;
 	klass_device->write_firmware = fu_flashrom_internal_device_write_firmware;
+	klass_device->set_quirk_kv = fu_flashrom_internal_device_set_quirk_kv;
 }
 
 FuDevice *

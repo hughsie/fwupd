@@ -69,12 +69,31 @@ Quirk use
 ---------
 This plugin uses the following plugin-specific quirks:
 
-| Quirk                  | Description                                 | Minimum fwupd version |
-|------------------------|---------------------------------------------|-----------------------|
-|`FlashromProgrammer`    | Used to specify the libflashrom programmer to be used.     | 1.5.9                 |
+| Quirk                         | Description                                             | Minimum fwupd version |
+|-------------------------------|---------------------------------------------------------|-----------------------|
+|`FlashromProgrammer`           | Used to specify the libflashrom programmer to be used.  | 1.5.9                 |
+|`FlashromNeedsFdopssUnlock`    | Enables ME region flashing via FDOPSS override.         | 1.6.2                 |
 
+The flashrom plugin uses the firmware size obtained from DMI, in case that value
+is not correct, it's possible to add a `FirmwareSizeMax` quirk for your device.
 
 External interface access
 ---
 This plugin requires access to all interfaces that `libflashrom` has been compiled for.
 This typically is `/sys/bus/spi` but there may be other interfaces as well.
+
+
+Unlocking the ME region
+-----------------------
+
+Some machines support unlocking the ME region of the SPI chip for flashing via
+the use of the Intel ME Debug Mode Pin-Strap (FDOPSS). In that case, before
+installing an update, the device will need to be unlocked.
+To unlock the ME region, run:
+
+```bash
+# fwupdmgr unlock
+```
+
+You will then be prompted to shut down the machine for the unlock to take effect.
+After powering it on again, you will be able to update the device as usual.

@@ -43,3 +43,19 @@ Plugin=flashrom
 FlashromProgrammer=lspcon_i2c_spi
 Name=PS175
 Vendor=Parade
+
+# Tuxedo InifinityBook S14 Gen6
+[6c80d85b-d0b6-5ee2-99d4-ec28dd32febd]
+Plugin=flashrom
+[3847cf02-6408-5e49-98c5-ce319258cc80]
+# DMI reports the size of the BIOS region, flashrom needs the size of the entire SPI flash
+FirmwareSizeMax=0x1000000
+FlashromNeedsFdopssUnlock=true
+
+# Tuxedo InifinityBook S15 Gen6
+[60f53465-e8fc-5122-b79b-f7b03f063037]
+Plugin=flashrom
+[dc0de287-201b-5240-b8d2-0e5cead707ea]
+# DMI reports the size of the BIOS region, flashrom needs the size of the entire SPI flash
+FirmwareSizeMax=0x1000000
+FlashromNeedsFdopssUnlock=true

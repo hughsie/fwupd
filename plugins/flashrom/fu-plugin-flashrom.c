@@ -44,6 +44,7 @@ fu_plugin_init (FuPlugin *plugin)
 	fu_plugin_add_device_gtype (plugin, FU_TYPE_FLASHROM_LSPCON_I2C_SPI_DEVICE);
 	fu_plugin_add_udev_subsystem (plugin, "i2c");
 	fu_context_add_quirk_key (ctx, "FlashromProgrammer");
+	fu_context_add_quirk_key (ctx, "FlashromNeedsFdopssUnlock");
 }
 
 static int
@@ -119,6 +120,7 @@ fu_plugin_flashrom_device_set_bios_info (FuPlugin *plugin, FuDevice *device)
 	guint32 bios_char = 0x0;
 	guint8 bios_sz = 0x0;
 	g_autoptr(GBytes) bios_table = NULL;
+	guint64 cur_fw_size = fu_device_get_firmware_size_max (device);
 
 	/* get SMBIOS info */
 	bios_table = fu_context_get_smbios_data (ctx, FU_SMBIOS_STRUCTURE_TYPE_BIOS);
@@ -127,7 +129,7 @@ fu_plugin_flashrom_device_set_bios_info (FuPlugin *plugin, FuDevice *device)
 
 	/* ROM size */
 	buf = g_bytes_get_data (bios_table, &bufsz);
-	if (fu_common_read_uint8_safe (buf, bufsz, 0x9, &bios_sz, NULL)) {
+	if (cur_fw_size == 0 && fu_common_read_uint8_safe (buf, bufsz, 0x9, &bios_sz, NULL)) {
 		guint64 firmware_size = (bios_sz + 1) * 64 * 1024;
 		fu_device_set_firmware_size_max (device, firmware_size);
 	}
@@ -192,6 +194,19 @@ fu_plugin_coldplug (FuPlugin *plugin, GError **error)
 	/* success */
 	fu_plugin_device_add (plugin, device);
 	return TRUE;
+}
+
+gboolean
+fu_plugin_unlock (FuPlugin *plugin, FuDevice *device, GError **error)
+{
+	if (flashrom_unlock_me ())
+		return TRUE;
+
+	g_set_error_literal (error,
+			     FWUPD_ERROR,
+			     FWUPD_ERROR_NOT_SUPPORTED,
+			     "could not unlock ME region");
+	return FALSE;
 }
 
 gboolean
