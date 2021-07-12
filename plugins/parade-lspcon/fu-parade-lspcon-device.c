@@ -7,57 +7,58 @@
 #include "config.h"
 
 #include <linux/i2c-dev.h>
+
 #include "fu-parade-lspcon-device.h"
 
 /* device registers are split into pages, where
  * each page has its own I2C address */
-#define I2C_ADDR_PAGE2 0x4a
-#define REG_ADDR_CLT2SPI 0x82
+#define I2C_ADDR_PAGE2			0x4A
+#define REG_ADDR_CLT2SPI		0x82
 /* FLASH_ADDR_* are the upper 16 bits of the 24-bit flash address that gets
  * mapped into page 7. Writing 0x01, 0x42 will map the 256 bytes from 0x420100
  * into page 7. */
-#define REG_ADDR_FLASH_ADDR_LO 0x8e
-#define REG_ADDR_FLASH_ADDR_HI 0x8f
+#define REG_ADDR_FLASH_ADDR_LO		0x8E
+#define REG_ADDR_FLASH_ADDR_HI		0x8F
 /* 16-deep SPI write and read buffer FIFOs */
-#define REG_ADDR_WR_FIFO 0x90
-#define REG_ADDR_RD_FIFO 0x91
+#define REG_ADDR_WR_FIFO		0x90
+#define REG_ADDR_RD_FIFO		0x91
 /* Low nibble is write operation length, high nibble for read commands.
  * Reset to 0 after command completion. */
-#define REG_ADDR_SPI_LEN 0x92
+#define REG_ADDR_SPI_LEN		0x92
 
-#define REG_ADDR_SPI_CTL 0x93
+#define REG_ADDR_SPI_CTL		0x93
 /* set to do a write-only transaction */
-#define SPI_CTL_NOREAD 0x04
+#define SPI_CTL_NOREAD			0x04
 /* set to begin executing command */
-#define SPI_CTL_TRIGGER 0x01
+#define SPI_CTL_TRIGGER			0x01
 
 /* operation status fields: set to 1 when operation begins, 2 when command has been
  * sent, reset to 0 when command completed */
-#define REG_ADDR_SPI_STATUS 0x9e
+#define REG_ADDR_SPI_STATUS		0x9e
 /* byte programming */
-#define SPI_STATUS_BP_MASK 0x03
+#define SPI_STATUS_BP_MASK		0x03
 /* sector erase */
-#define SPI_STATUS_SE_MASK 0x0c
+#define SPI_STATUS_SE_MASK		0x0C
 /* chip erase */
-#define SPI_STATUS_CE_MASK 0x30
+#define SPI_STATUS_CE_MASK		0x30
 
 /* write WR_PROTECT_DISABLE to permit flash write operations */
-#define REG_ADDR_WR_PROTECT 0xb3
-#define WR_PROTECT_DISABLE 0x10
+#define REG_ADDR_WR_PROTECT		0xB3
+#define WR_PROTECT_DISABLE		0x10
 
 /* MPU control register */
-#define REG_ADDR_MPU 0xbc
+#define REG_ADDR_MPU			0xBC
 
 /* write a magic sequence to this register to enable writes to
  * mapped memory via page 7, or anything else to disable */
-#define REG_ADDR_MAP_WRITE 0xda
+#define REG_ADDR_MAP_WRITE		0xDA
 
-#define I2C_ADDR_PAGE5 0x4d
-#define REG_ADDR_ACTIVE_PARTITION 0x0e
+#define I2C_ADDR_PAGE5			0x4D
+#define REG_ADDR_ACTIVE_PARTITION	0x0E
 
-#define I2C_ADDR_PAGE7 0x4f
+#define I2C_ADDR_PAGE7			0x4F
 
-#define FLASH_BLOCK_SIZE 0x10000
+#define FLASH_BLOCK_SIZE		0x10000
 
 /*
  * user1: 0x10000 - 0x20000
@@ -76,9 +77,6 @@ static void
 fu_parade_lspcon_device_init (FuParadeLspconDevice *self)
 {
 	FuDevice *device = FU_DEVICE (self);
-
-	self->aux_device_name = NULL;
-
 	fu_device_set_vendor (device, "Parade Technologies");
 	fu_device_add_vendor_id (device, "PCI:0x1AF8");
 	fu_device_add_protocol (device, "com.paradetech.ps176");
@@ -95,7 +93,6 @@ static void
 fu_parade_lspcon_device_finalize (GObject *object)
 {
 	FuParadeLspconDevice *self = FU_PARADE_LSPCON_DEVICE (object);
-
 	g_free (self->aux_device_name);
 }
 
@@ -121,15 +118,13 @@ fu_parade_lspcon_device_probe (FuDevice *device, GError **error)
 	FuParadeLspconDevice *self = FU_PARADE_LSPCON_DEVICE (device);
 	FuContext *context = fu_device_get_context (device);
 	FuUdevDevice *udev_device = FU_UDEV_DEVICE (device);
-	g_autofree gchar *instance_id = NULL;
-	g_autofree gchar *instance_id_hwid = NULL;
 	const gchar *device_name;
+	g_autofree gchar *instance_id_hwid = NULL;
+	g_autofree gchar *instance_id = NULL;
 
 	/* custom instance IDs to get device quirks */
 	instance_id = g_strdup_printf ("PARADE-LSPCON\\NAME_%s",
-				       fu_udev_device_get_sysfs_attr (
-					       udev_device, "name", NULL
-				       ));
+				       fu_udev_device_get_sysfs_attr (udev_device, "name", NULL));
 	fu_device_add_instance_id (device, instance_id);
 	instance_id_hwid = g_strdup_printf ("%s&FAMILY_%s", instance_id,
 					    fu_context_get_hwid_value (context,
@@ -139,7 +134,9 @@ fu_parade_lspcon_device_probe (FuDevice *device, GError **error)
 
 	device_name = fu_device_get_name (device);
 	if (g_strcmp0 (device_name, "PS175") != 0) {
-		g_set_error (error, FWUPD_ERROR, FWUPD_ERROR_NOT_SUPPORTED,
+		g_set_error (error,
+			     FWUPD_ERROR,
+			     FWUPD_ERROR_NOT_SUPPORTED,
 			     "device name %s is not supported by this plugin",
 			     device_name);
 		return FALSE;
@@ -147,7 +144,9 @@ fu_parade_lspcon_device_probe (FuDevice *device, GError **error)
 
 	/* should know which aux device over which we read DPCD version */
 	if (self->aux_device_name == NULL) {
-		g_set_error_literal (error, FWUPD_ERROR, FWUPD_ERROR_NOT_SUPPORTED,
+		g_set_error_literal (error,
+				     FWUPD_ERROR,
+				     FWUPD_ERROR_NOT_SUPPORTED,
 				     "ParadeLspconAuxDeviceName must be specified");
 		return FALSE;
 	}
@@ -157,7 +156,9 @@ fu_parade_lspcon_device_probe (FuDevice *device, GError **error)
 }
 
 static gboolean
-ensure_i2c_address (FuParadeLspconDevice *self, guint8 address, GError **error)
+fu_parade_lspcon_ensure_i2c_address (FuParadeLspconDevice *self,
+				     guint8 address,
+				     GError **error)
 {
 	if (!fu_udev_device_ioctl (FU_UDEV_DEVICE (self),
 				   I2C_SLAVE, (guint8 *) (guintptr) address, NULL,
@@ -176,98 +177,120 @@ fu_parade_lspcon_device_open (FuDevice *device, GError **error)
 
 	/* general assumption is that page 2 is selected: code that uses another address
 	 * should use an address guard to ensure it gets reset */
-	return ensure_i2c_address (FU_PARADE_LSPCON_DEVICE (device), I2C_ADDR_PAGE2, error);
+	return fu_parade_lspcon_ensure_i2c_address (FU_PARADE_LSPCON_DEVICE (device),
+						    I2C_ADDR_PAGE2,
+						    error);
 }
 
 /**
- * I2cAddressGuard creates a scope in which the device's target I2C address is something
+ * creates a scope in which the device's target I2C address is something
  * other than page 2, and resets it to page 2 when the scope is left.
  */
-struct I2cAddressGuard {
+typedef struct {
 	FuParadeLspconDevice *device;
-};
-typedef struct I2cAddressGuard I2cAddressGuard;
+} FuParadeLspconI2cAddressGuard;
 
-static I2cAddressGuard*
-i2c_address_guard_new (FuParadeLspconDevice *self, guint8 new_address, GError **error)
+static FuParadeLspconI2cAddressGuard *
+fu_parade_lspcon_i2c_address_guard_new (FuParadeLspconDevice *self, guint8 new_address, GError **error)
 {
-	I2cAddressGuard *out;
-	if (!ensure_i2c_address (self, new_address, error))
+	FuParadeLspconI2cAddressGuard *out;
+
+	if (!fu_parade_lspcon_ensure_i2c_address (self, new_address, error))
 		return NULL;
-	out = g_malloc (sizeof (I2cAddressGuard));
+	out = g_new0 (FuParadeLspconI2cAddressGuard, 1);
 	out->device = self;
 	return out;
 }
 
 static void
-i2c_address_guard_dispose (I2cAddressGuard *guard)
+fu_parade_lspcon_i2c_address_guard_free (FuParadeLspconI2cAddressGuard *guard)
 {
-	ensure_i2c_address (guard->device, I2C_ADDR_PAGE2, NULL);
+	g_autoptr(GError) error_local = NULL;
+	if (!fu_parade_lspcon_ensure_i2c_address (guard->device,
+						  I2C_ADDR_PAGE2,
+						  &error_local)) {
+		g_warning ("failed to set page2 back: %s", error_local->message);
+	}
 	g_free (guard);
 }
 
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(I2cAddressGuard, i2c_address_guard_dispose);
-
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(FuParadeLspconI2cAddressGuard,
+			      fu_parade_lspcon_i2c_address_guard_free);
 
 static gboolean
-lspcon_write_register (FuParadeLspconDevice *self, guint8 register_addr, guint8 value, GError **error)
+fu_parade_lspcon_write_register (FuParadeLspconDevice *self,
+				 guint8 register_addr,
+				 guint8 value,
+				 GError **error)
 {
-	guint8 transaction[] = {register_addr, value};
-
+	guint8 transaction[] = { register_addr, value };
 	return fu_i2c_device_write_full (FU_I2C_DEVICE (self), transaction,
-					 sizeof (transaction), error);
+					 sizeof(transaction), error);
 }
 
 static gboolean
-lspcon_read_register (FuParadeLspconDevice *self, guint8 register_addr, guint8 *value, GError **error)
+fu_parade_lspcon_read_register (FuParadeLspconDevice *self,
+				guint8 register_addr,
+				guint8 *value,
+				GError **error)
 {
 	FuI2cDevice *i2c_device = FU_I2C_DEVICE (self);
-
 	if (!fu_i2c_device_write (i2c_device, register_addr, error))
 		return FALSE;
 	return fu_i2c_device_read (i2c_device, value, error);
 }
 
-/**
- * Map the page containing the given address into page 7.
- */
+/* map the page containing the given address into page 7 */
 static gboolean
-lspcon_map_page (FuParadeLspconDevice *self, guint32 address, GError **error)
+fu_parade_lspcon_map_page (FuParadeLspconDevice *self, guint32 address, GError **error)
 {
-	if (!lspcon_write_register (self, REG_ADDR_FLASH_ADDR_HI, address >> 16, error))
+	if (!fu_parade_lspcon_write_register (self,
+					      REG_ADDR_FLASH_ADDR_HI,
+					      address >> 16,
+					      error))
 		return FALSE;
-	return lspcon_write_register (self, REG_ADDR_FLASH_ADDR_LO, address >> 8, error);
+	return fu_parade_lspcon_write_register (self,
+						REG_ADDR_FLASH_ADDR_LO,
+						address >> 8,
+						error);
 }
 
-/**
- * Wait until the specified register masked with mask reads the expected
- * value, up to 10 seconds.
- */
+/* wait until the specified register masked with mask reads the expected
+ * value, up to 10 seconds */
 static gboolean
-lspcon_poll_register (FuParadeLspconDevice *self, guint8 register_address,
-		      guint8 mask, guint8 expected, GError **error)
+fu_parade_lspcon_poll_register (FuParadeLspconDevice *self,
+				guint8 register_address,
+				guint8 mask,
+				guint8 expected,
+				GError **error)
 {
 	guint8 value;
 	g_autoptr(GTimer) timer = g_timer_new();
 
 	do {
-		if (!lspcon_read_register (self, register_address, &value, error))
+		if (!fu_parade_lspcon_read_register (self,
+						     register_address,
+						     &value,
+						     error))
 			return FALSE;
 		if ((value & mask) == expected)
 			return TRUE;
 	} while (g_timer_elapsed (timer, NULL) <= 10.0);
 
-	g_set_error (error, G_IO_ERROR, G_IO_ERROR_TIMED_OUT,
+	g_set_error (error,
+		     G_IO_ERROR,
+		     G_IO_ERROR_TIMED_OUT,
 		     "register %x did not read %x (mask %x) within 10 seconds: read %x",
 		     register_address, expected, mask, value);
 	return FALSE;
 }
 
 static gboolean
-flash_read (FuParadeLspconDevice *self,
-	    guint32 base_address,
-	    guint8 *data, gsize len,
-	    GError **error)
+fu_parade_lspcon_flash_read (FuParadeLspconDevice *self,
+			     guint32 base_address,
+			     guint8 *data,
+			     gsize len,
+			     GError **error)
 {
 	FuDevice *device = FU_DEVICE (self);
 	FuI2cDevice *i2c_device = FU_I2C_DEVICE (self);
@@ -277,23 +300,22 @@ flash_read (FuParadeLspconDevice *self,
 		/* page 7 reads always start from the base of the mapped window- we'll
 		 * read the whole page then pull out the parts we care about, using the
 		 * full page everywhere except possibly in the first and last reads */
-		guint8 page_data[256];
+		guint8 page_data[256] = { 0x0 };
 		guint8 page_data_start = base_address & 0xFF;
 		gsize page_data_take = MIN ((gssize) len, 256 - page_data_start);
+		g_autoptr(FuParadeLspconI2cAddressGuard) guard = NULL;
 
-		if (!lspcon_map_page (self, base_address, error))
+		if (!fu_parade_lspcon_map_page (self, base_address, error))
 			return FALSE;
-		{
-			g_autoptr(I2cAddressGuard) guard = i2c_address_guard_new (self,
-										  I2C_ADDR_PAGE7,
-										  error);
-			if (guard == NULL)
-				return FALSE;
-			if (!fu_i2c_device_read_full (i2c_device, page_data, 256, error))
-				return FALSE;
-		}
+		guard = fu_parade_lspcon_i2c_address_guard_new (self,
+								I2C_ADDR_PAGE7,
+								error);
+		if (guard == NULL)
+			return FALSE;
+		if (!fu_i2c_device_read_full (i2c_device, page_data, 256, error))
+			return FALSE;
 
-		memcpy(data, page_data + page_data_start, page_data_take);
+		memcpy (data, page_data + page_data_start, page_data_take);
 		base_address += page_data_take;
 		data += page_data_take;
 		len -= page_data_take;
@@ -305,65 +327,80 @@ flash_read (FuParadeLspconDevice *self,
 }
 
 static gboolean
-flash_transmit_command (FuParadeLspconDevice *self,
-			const guint8 *command,
-			gsize command_len,
-			GError **error)
+fu_parade_lspcon_flash_transmit_command (FuParadeLspconDevice *self,
+					 const guint8 *command,
+					 gsize command_len,
+					 GError **error)
 {
 	/* write length field is 4 bits wide */
 	g_return_val_if_fail (command_len > 0 && command_len <= 16, FALSE);
 
 	/* fill transmit buffer */
 	for (gsize i = 0; i < command_len; i++) {
-		if (!lspcon_write_register (self, REG_ADDR_WR_FIFO, command[i], error))
+		if (!fu_parade_lspcon_write_register (self,
+						      REG_ADDR_WR_FIFO,
+						      command[i],
+						      error))
 			return FALSE;
 	}
+
 	/* set command length */
-	if (!lspcon_write_register (self, REG_ADDR_SPI_LEN, command_len - 1, error))
+	if (!fu_parade_lspcon_write_register (self,
+					      REG_ADDR_SPI_LEN,
+					      command_len - 1,
+					      error))
 		return FALSE;
 
 	/* execute operation */
-	return lspcon_write_register (self, REG_ADDR_SPI_CTL,
-				      SPI_CTL_NOREAD | SPI_CTL_TRIGGER, error);
+	return fu_parade_lspcon_write_register (self,
+						REG_ADDR_SPI_CTL,
+						SPI_CTL_NOREAD | SPI_CTL_TRIGGER,
+						error);
 }
 
-/**
- * Set the flash Write Enable Latch, permitting the next program, erase or
+/*
+ * set the flash Write Enable Latch, permitting the next program, erase or
  * status register write operation.
  */
 static gboolean
-flash_enable_write (FuParadeLspconDevice *self,
-		    GError **error)
+fu_parade_lspcon_flash_enable_write (FuParadeLspconDevice *self, GError **error)
 {
 	const guint8 write_enable[] = { 0x06 };
-	return flash_transmit_command (self, write_enable, sizeof (write_enable), error);
+	return fu_parade_lspcon_flash_transmit_command (self,
+							write_enable,
+							sizeof(write_enable),
+							error);
 }
 
 static gboolean
-flash_read_status (FuParadeLspconDevice *self, guint8 *value, GError **error)
+fu_parade_lspcon_flash_read_status (FuParadeLspconDevice *self,
+				    guint8 *value,
+				    GError **error)
 {
-	if (!lspcon_write_register (self, REG_ADDR_WR_FIFO, 0x05, error))
+	if (!fu_parade_lspcon_write_register (self, REG_ADDR_WR_FIFO, 0x05, error))
 		return FALSE;
-	if (!lspcon_write_register (self, REG_ADDR_SPI_LEN, 0, error))
+	if (!fu_parade_lspcon_write_register (self, REG_ADDR_SPI_LEN, 0, error))
 		return FALSE;
-	if (!lspcon_write_register (self, REG_ADDR_SPI_CTL, SPI_CTL_TRIGGER, error))
+	if (!fu_parade_lspcon_write_register (self, REG_ADDR_SPI_CTL, SPI_CTL_TRIGGER, error))
 		return FALSE;
+
 	/* wait for command completion */
-	if (!lspcon_poll_register (self, REG_ADDR_SPI_CTL, SPI_CTL_TRIGGER, 0, error))
+	if (!fu_parade_lspcon_poll_register (self, REG_ADDR_SPI_CTL, SPI_CTL_TRIGGER, 0, error))
 		return FALSE;
+
 	/* read SR value */
-	return lspcon_read_register (self, REG_ADDR_RD_FIFO, value, error);
+	return fu_parade_lspcon_read_register (self, REG_ADDR_RD_FIFO, value, error);
 }
 
-/** Poll the flash status register for operation completion */
+/* poll the flash status register for operation completion */
 static gboolean
-flash_wait_ready (FuParadeLspconDevice *self, GError **error)
+fu_parade_lspcon_flash_wait_ready (FuParadeLspconDevice *self, GError **error)
 {
 	g_autoptr(GTimer) timer = g_timer_new ();
 
 	do {
 		guint8 status_register;
-		if (!flash_read_status (self, &status_register, error))
+		if (!fu_parade_lspcon_flash_read_status (self, &status_register, error))
 			return FALSE;
 
 		/* BUSY bit clears on completion */
@@ -375,20 +412,22 @@ flash_wait_ready (FuParadeLspconDevice *self, GError **error)
 		g_usleep (G_TIME_SPAN_MILLISECOND);
 	} while (g_timer_elapsed (timer, NULL) <= 10.0);
 
-	g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_TIMED_OUT,
+	g_set_error_literal (error,
+			     G_IO_ERROR,
+			     G_IO_ERROR_TIMED_OUT,
 			     "flash did not become ready within 10 seconds");
 	return FALSE;
 }
 
 static gboolean
-flash_write (FuParadeLspconDevice *self,
+fu_parade_lspcon_flash_write (FuParadeLspconDevice *self,
 	     guint32 base_address,
 	     GBytes *data,
 	     GError **error)
 {
 	FuDevice *device = FU_DEVICE (self);
 	FuI2cDevice *i2c_device = FU_I2C_DEVICE (self);
-	const guint8 unlock_writes[] = {0xaa, 0x55, 0x50, 0x41, 0x52, 0x44};
+	const guint8 unlock_writes[] = { 0xaa, 0x55, 0x50, 0x41, 0x52, 0x44 };
 	gsize data_len;
 	const guint8 *data_buf = g_bytes_get_data (data, &data_len);
 
@@ -398,97 +437,110 @@ flash_write (FuParadeLspconDevice *self,
 		 g_bytes_get_size (data), base_address);
 
 	/* unlock map writes by writing the magic sequence */
-	for (gsize i = 0; i < sizeof (unlock_writes); i++) {
-		if (!lspcon_write_register (self, REG_ADDR_MAP_WRITE, unlock_writes[i],
-					    error))
+	for (gsize i = 0; i < sizeof(unlock_writes); i++) {
+		if (!fu_parade_lspcon_write_register (self,
+						      REG_ADDR_MAP_WRITE,
+						      unlock_writes[i],
+						      error))
 			return FALSE;
 	}
 
 	/* reset clt2SPI, required before write */
-	if (!lspcon_write_register (self, REG_ADDR_CLT2SPI, 0x20, error))
+	if (!fu_parade_lspcon_write_register (self, REG_ADDR_CLT2SPI, 0x20, error))
 		return FALSE;
 	g_usleep (100 * G_TIME_SPAN_MILLISECOND);
-	if (!lspcon_write_register (self, REG_ADDR_CLT2SPI, 0, error))
+	if (!fu_parade_lspcon_write_register (self, REG_ADDR_CLT2SPI, 0, error))
 		return FALSE;
 
 	for (gsize bytes_written = 0; bytes_written < data_len; bytes_written += 256) {
 		guint32 address = base_address + bytes_written;
 		guint32 chunk_size = MIN (data_len - bytes_written, 256);
+		guint8 write_data[257] = { 0x0 };
+		g_autoptr(FuParadeLspconI2cAddressGuard) guard = NULL;
 
 		/* map target address range in page 7 */
-		if (!lspcon_map_page (self, address, error))
+		if (!fu_parade_lspcon_map_page (self, address, error))
 			return FALSE;
 
 		/* write data to page 7 memory window */
-		{
-			g_autoptr(I2cAddressGuard) guard = i2c_address_guard_new (self,
-										  I2C_ADDR_PAGE7,
-										  error);
-			/* page write is prefixed with an offset:
-			 * we always start from offset 0 */
-			guint8 write_data[257];
-			write_data[0] = 0;
-			if (!fu_memcpy_safe (write_data, sizeof (write_data), 1,
-					     data_buf, data_len, bytes_written,
-					     chunk_size, error))
-				return FALSE;
+		guard = fu_parade_lspcon_i2c_address_guard_new (self,
+								I2C_ADDR_PAGE7,
+								error);
+		/* page write is prefixed with an offset:
+		 * we always start from offset 0 */
+		write_data[0] = 0;
+		if (!fu_memcpy_safe (write_data, sizeof(write_data), 1,
+				     data_buf, data_len, bytes_written,
+				     chunk_size, error))
+			return FALSE;
 
-			if (!fu_i2c_device_write_full (i2c_device,
-						       write_data,
-						       chunk_size + 1,
-						       error))
-				return FALSE;
-		}
+		if (!fu_i2c_device_write_full (i2c_device,
+					       write_data,
+					       chunk_size + 1,
+					       error))
+			return FALSE;
 
 		fu_device_set_progress_full (device, bytes_written, data_len);
 	}
 
 	/* re-lock map writes */
-	return lspcon_write_register (self, REG_ADDR_MAP_WRITE, 0, error);
+	return fu_parade_lspcon_write_register (self, REG_ADDR_MAP_WRITE, 0, error);
 }
 
 static gboolean
-flash_erase_block (FuParadeLspconDevice *self,
-		   guint32 base_address,
-		   guint32 size,
-		   GError **error)
+fu_parade_lspcon_flash_erase_block (FuParadeLspconDevice *self,
+				    guint32 base_address,
+				    guint32 size,
+				    GError **error)
 {
-	const guint8 block_erase[] = {0xd8,
-				      base_address >> 16,
-				      base_address >> 8,
-				      base_address};
+	const guint8 block_erase[] = { 0xd8,
+				       base_address >> 16,
+				       base_address >> 8,
+				       base_address };
 
 	/* address must be block-aligned */
 	g_return_val_if_fail ((base_address & (FLASH_BLOCK_SIZE - 1)) == 0, FALSE);
-	/* size must be exactly one flash block */
 	g_return_val_if_fail (size == FLASH_BLOCK_SIZE, FALSE);
+
 	g_debug ("flash erase block at %#x", base_address);
 
-	if (!flash_enable_write (self, error))
+	if (!fu_parade_lspcon_flash_enable_write (self, error))
 		return FALSE;
 
-	if (!flash_transmit_command (self, block_erase, sizeof (block_erase), error))
+	if (!fu_parade_lspcon_flash_transmit_command (self,
+						      block_erase,
+						      sizeof(block_erase),
+						      error))
 		return FALSE;
+
 	/* wait for command completion */
-	if (!lspcon_poll_register (self, REG_ADDR_SPI_STATUS, SPI_STATUS_SE_MASK, 0, error))
+	if (!fu_parade_lspcon_poll_register (self,
+					     REG_ADDR_SPI_STATUS,
+					     SPI_STATUS_SE_MASK,
+					     0,
+					     error))
 		return FALSE;
 
 	/* wait for flash to complete erase */
-	return flash_wait_ready (self, error);
+	return fu_parade_lspcon_flash_wait_ready (self, error);
 }
 
 static gboolean
-probe_active_flash_partition (FuParadeLspconDevice *self,
-			      guint8 *partition,
-			      GError **error)
+fu_parade_lspcon_probe_active_flash_partition (FuParadeLspconDevice *self,
+					       guint8 *partition,
+					       GError **error)
 {
-	guint8 data;
+	guint8 data = 0x0;
+	g_autoptr(FuParadeLspconI2cAddressGuard) guard = NULL;
 
 	/* read currently-running flash partition number */
-	g_autoptr(I2cAddressGuard) guard = i2c_address_guard_new (self, I2C_ADDR_PAGE5, error);
+	guard = fu_parade_lspcon_i2c_address_guard_new (self, I2C_ADDR_PAGE5, error);
 	if (guard == NULL)
 		return FALSE;
-	if (!lspcon_read_register (self, REG_ADDR_ACTIVE_PARTITION, &data, error))
+	if (!fu_parade_lspcon_read_register (self,
+					     REG_ADDR_ACTIVE_PARTITION,
+					     &data,
+					     error))
 		return FALSE;
 
 	*partition = data;
@@ -499,21 +551,23 @@ static gboolean
 fu_parade_lspcon_device_reload (FuDevice *device, GError **error)
 {
 	FuParadeLspconDevice *self = FU_PARADE_LSPCON_DEVICE (device);
+	guint32 oui;
+	guint8 version_buf[2] = { 0x0 };
+	g_autofree gchar *version = NULL;
+	g_autoptr(FuDeviceLocker) aux_device_locker = NULL;
+	g_autoptr(FuUdevDevice) aux_device = NULL;
+	g_autoptr(GList) aux_devices = NULL;
 	g_autoptr(GUdevClient) udev_client = g_udev_client_new (NULL);
 	g_autoptr(GUdevEnumerator) enumerator = g_udev_enumerator_new (udev_client);
-	g_autoptr(FuUdevDevice) aux_device = NULL;
-	g_autoptr(FuDeviceLocker) aux_device_locker = NULL;
-	GList *aux_devices;
-	guint32 oui;
-	guint8 version_buf[2];
-	g_autofree gchar *version = NULL;
 
 	/* determine active partition for flashing later */
-	if (!probe_active_flash_partition (self, &self->active_partition, error))
+	if (!fu_parade_lspcon_probe_active_flash_partition (self, &self->active_partition, error))
 		return FALSE;
 	g_debug ("device reports running from partition %d", self->active_partition);
 	if (self->active_partition < 1 || self->active_partition > 3) {
-		g_set_error (error, FWUPD_ERROR, FWUPD_ERROR_NOT_SUPPORTED,
+		g_set_error (error,
+			     FWUPD_ERROR,
+			     FWUPD_ERROR_NOT_SUPPORTED,
 			     "unexpected active flash partition: %d",
 			     self->active_partition);
 		return FALSE;
@@ -522,7 +576,9 @@ fu_parade_lspcon_device_reload (FuDevice *device, GError **error)
 	/* find the drm_dp_aux_dev specified by quirks that is connected to the
 	 * LSPCON, in order to read DPCD from it */
 	if (self->aux_device_name == NULL) {
-		g_set_error_literal (error, FWUPD_ERROR, FWUPD_ERROR_NOT_SUPPORTED,
+		g_set_error_literal (error,
+			     FWUPD_ERROR,
+			     FWUPD_ERROR_NOT_SUPPORTED,
 				     "no DP aux device specified, unable to query LSPCON");
 		return FALSE;
 	}
@@ -530,20 +586,23 @@ fu_parade_lspcon_device_reload (FuDevice *device, GError **error)
 	g_udev_enumerator_add_match_sysfs_attr (enumerator, "name", self->aux_device_name);
 	aux_devices = g_udev_enumerator_execute (enumerator);
 	if (aux_devices == NULL) {
-		g_set_error (error, FWUPD_ERROR, FWUPD_ERROR_NOT_SUPPORTED,
+		g_set_error (error,
+			     FWUPD_ERROR,
+			     FWUPD_ERROR_NOT_SUPPORTED,
 			     "failed to locate a DP aux device named \"%s\"",
 			     self->aux_device_name);
 		return FALSE;
 	}
 	if (g_list_length (aux_devices) > 1) {
 		g_list_free_full (aux_devices, g_object_unref);
-		g_set_error (error, FWUPD_ERROR, FWUPD_ERROR_NOT_SUPPORTED,
+		g_set_error (error,
+			     FWUPD_ERROR,
+			     FWUPD_ERROR_NOT_SUPPORTED,
 			     "found multiple DP aux devices with name \"%s\"",
 			     self->aux_device_name);
 		return FALSE;
 	}
 	aux_device = fu_udev_device_new (g_steal_pointer (&aux_devices->data));
-	g_list_free (aux_devices);
 	g_debug ("using aux dev %s", fu_udev_device_get_sysfs_path (aux_device));
 
 	/* the following open() requires the device have IDs set */
@@ -553,95 +612,96 @@ fu_parade_lspcon_device_reload (FuDevice *device, GError **error)
 	/* open device to read version from DPCD */
 	if ((aux_device_locker = fu_device_locker_new (aux_device, error)) == NULL)
 		return FALSE;
+
 	/* DPCD address 00500-00502: device OUI */
 	if (!fu_udev_device_pread_full (aux_device, 0x500, (guint8 *) &oui, 3, error))
 		return FALSE;
 	oui = GUINT32_FROM_BE(oui) >> 8;
 	if (oui != 0x001CF8) {
-		g_set_error (error, FWUPD_ERROR, FWUPD_ERROR_NOT_SUPPORTED,
+		g_set_error (error,
+			     FWUPD_ERROR,
+			     FWUPD_ERROR_NOT_SUPPORTED,
 			     "device OUI %06X does not match expected value for Paradetech",
 			     oui);
 		return FALSE;
 	}
+
 	/* DPCD address 0x50A, 0x50B: branch device firmware
 	 * major and minor revision */
-	if (!fu_udev_device_pread_full (aux_device, 0x50a, version_buf,
-					sizeof (version_buf), error))
+	if (!fu_udev_device_pread_full (aux_device, 0x50a,
+					version_buf, sizeof(version_buf),
+					error))
 		return FALSE;
 	version = g_strdup_printf ("%d.%d", version_buf[0], version_buf[1]);
 	fu_device_set_version (device, version);
-
 	return TRUE;
 }
 
 static gboolean
-set_mpu_running (FuParadeLspconDevice *self, gboolean running, GError **error)
-{
-	/* reset */
-	if (!lspcon_write_register (self, REG_ADDR_MPU, 0xc0, error))
-		return FALSE;
-	/* release reset, set MPU active or not */
-	return lspcon_write_register (self, REG_ADDR_MPU, running ? 0 : 0x40, error);
-}
-
-static gboolean
-fu_parade_lspcon_device_detach (FuDevice *device, GError **error)
-{
-	return set_mpu_running (FU_PARADE_LSPCON_DEVICE (device), FALSE, error);
-}
-
-static gboolean
-fu_parade_lspcon_device_write_firmware (FuDevice *device, FuFirmware *firmware, FwupdInstallFlags flags, GError **error)
+fu_parade_lspcon_device_write_firmware (FuDevice *device,
+					FuFirmware *firmware,
+					FwupdInstallFlags flags,
+					GError **error)
 {
 	FuParadeLspconDevice *self = FU_PARADE_LSPCON_DEVICE (device);
-	const guint8 write_sr_volatile[] = {0x50};
+	const guint8 write_sr_volatile[] = { 0x50 };
 	const guint8 write_sr_disable_bp[] = {
 		0x01,	/* write SR */
 		0x80,	/* write protect follows /WP signal, no block protection */
 		0x00
 	};
-	const guint8 write_sr_enable_bp[] = {0x01, 0x8c, 0x00};
+	const guint8 write_sr_enable_bp[] = { 0x01, 0x8c, 0x00 };
 	/* if the boot partition is active we could flash either, but prefer
 	 * the first */
 	const guint8 target_partition = self->active_partition == 1 ? 2 : 1;
 	const guint32 target_address = target_partition << 16;
-	const guint8 flag_data[] = {0x55, 0xaa, target_partition, 1 - target_partition};
-	gsize firmware_size;
-	const guint8 *firmware_buf;
+	const guint8 flag_data[] = { 0x55, 0xaa, target_partition, 1 - target_partition };
+	const guint8 *buf;
+	gsize bufsz;
 	g_autofree guint8 *readback_buf = NULL;
-	g_autoptr(GBytes) blob_fw = fu_firmware_get_bytes (firmware, error);
+	g_autoptr(GBytes) blob_fw = NULL;
+	g_autoptr(GBytes) flag_data_bytes = NULL;
+
+	blob_fw = fu_firmware_get_bytes (firmware, error);
 	if (blob_fw == NULL)
 		return FALSE;
 
-	firmware_buf = g_bytes_get_data (blob_fw, &firmware_size);
-
-	if (firmware_size != FLASH_BLOCK_SIZE) {
+	buf = g_bytes_get_data (blob_fw, &bufsz);
+	if (bufsz != FLASH_BLOCK_SIZE) {
 		g_set_error (error,
 			     FWUPD_ERROR,
 			     FWUPD_ERROR_NOT_SUPPORTED,
 			     "invalid image size %#" G_GSIZE_MODIFIER "x, expected %#x",
-			     firmware_size, (unsigned) FLASH_BLOCK_SIZE);
+			     bufsz, (unsigned) FLASH_BLOCK_SIZE);
 		return FALSE;
 	}
 
 	/* deassert flash /WP */
-	if (!lspcon_write_register (self, REG_ADDR_WR_PROTECT, WR_PROTECT_DISABLE, error))
+	if (!fu_parade_lspcon_write_register (self,
+					      REG_ADDR_WR_PROTECT,
+					      WR_PROTECT_DISABLE,
+					      error))
 		return FALSE;
 
 	/* disable flash protection until next power-off */
-	if (!flash_transmit_command (self, write_sr_volatile, sizeof (write_sr_volatile),
-				     error))
+	if (!fu_parade_lspcon_flash_transmit_command (self,
+						      write_sr_volatile,
+						      sizeof(write_sr_volatile),
+						      error))
 		return FALSE;
-	if (!flash_transmit_command (self, write_sr_disable_bp,
-				     sizeof (write_sr_disable_bp), error))
+	if (!fu_parade_lspcon_flash_transmit_command (self,
+						      write_sr_disable_bp,
+						      sizeof(write_sr_disable_bp),
+						      error))
 		return FALSE;
+
 	/* wait for SR write to complete */
-	if (!flash_wait_ready (self, error))
+	if (!fu_parade_lspcon_flash_wait_ready (self, error))
 		return FALSE;
 
 	/* erase entire target partition (one flash block) */
 	fu_device_set_status (device, FWUPD_STATUS_DEVICE_ERASE);
-	if (!flash_erase_block (self, target_address, firmware_size, error)) {
+	if (!fu_parade_lspcon_flash_erase_block (self, target_address, bufsz, error)) {
 		g_prefix_error (error, "failed to erase flash partition %d: ",
 				target_partition);
 		return FALSE;
@@ -649,7 +709,7 @@ fu_parade_lspcon_device_write_firmware (FuDevice *device, FuFirmware *firmware, 
 
 	/* write image */
 	fu_device_set_status (device, FWUPD_STATUS_DEVICE_WRITE);
-	if (!flash_write (self, target_address, blob_fw, error)) {
+	if (!fu_parade_lspcon_flash_write (self, target_address, blob_fw, error)) {
 		g_prefix_error (error, "failed to write firmware to partition %d: ",
 				target_partition);
 		return FALSE;
@@ -657,62 +717,96 @@ fu_parade_lspcon_device_write_firmware (FuDevice *device, FuFirmware *firmware, 
 
 	/* read back written image to verify */
 	fu_device_set_status (device, FWUPD_STATUS_DEVICE_VERIFY);
-	readback_buf = g_malloc (firmware_size);
-	if (!flash_read (self, target_address, readback_buf, firmware_size, error))
+	readback_buf = g_malloc0 (bufsz);
+	if (!fu_parade_lspcon_flash_read (self, target_address,
+					  readback_buf, bufsz,
+					  error))
 		return FALSE;
-	if (memcmp (firmware_buf, readback_buf, firmware_size) != 0) {
-		g_set_error_literal (error, FWUPD_ERROR, FWUPD_ERROR_WRITE,
-				     "flash contents do not match written data");
+	if (!fu_common_bytes_compare_raw (buf, bufsz,
+					  readback_buf, bufsz,
+					  error)) {
+		g_prefix_error (error, "flash contents do not match: ");
 		return FALSE;
 	}
 
 	/* erase flag partition */
 	fu_device_set_status (device, FWUPD_STATUS_DEVICE_ERASE);
-	if (!flash_erase_block (self, 0, FLASH_BLOCK_SIZE, error))
+	if (!fu_parade_lspcon_flash_erase_block (self, 0, FLASH_BLOCK_SIZE, error))
 		return FALSE;
+
 	/* write flag indicating device should boot the target partition */
 	fu_device_set_status (device, FWUPD_STATUS_DEVICE_WRITE);
-	if (!flash_write (self, 0, g_bytes_new_static (flag_data, sizeof (flag_data)),
-			  error))
+	flag_data_bytes = g_bytes_new_static (flag_data, sizeof(flag_data));
+	if (!fu_parade_lspcon_flash_write (self, 0, flag_data_bytes, error))
 		return FALSE;
+
 	/* verify flag partition */
 	fu_device_set_status (device, FWUPD_STATUS_DEVICE_VERIFY);
-	if (!flash_read (self, 0, readback_buf, sizeof (flag_data), error))
+	if (!fu_parade_lspcon_flash_read (self, 0,
+					  readback_buf, sizeof(flag_data),
+					  error))
 		return FALSE;
-	if (memcmp (flag_data, readback_buf, sizeof (flag_data)) != 0) {
-		g_set_error_literal (error, FWUPD_ERROR, FWUPD_ERROR_WRITE,
-				     "flag partition contents do not match written data");
+	if (!fu_common_bytes_compare_raw (flag_data, sizeof(flag_data),
+					  readback_buf, bufsz,
+					  error)) {
+		g_prefix_error (error, "flag partition contents do not match: ");
 		return FALSE;
 	}
 
 	/* re-enable flash protection */
-	if (!flash_transmit_command (self, write_sr_volatile, sizeof (write_sr_volatile),
-				     error))
+	if (!fu_parade_lspcon_flash_transmit_command (self,
+						      write_sr_volatile,
+						      sizeof(write_sr_volatile),
+						      error))
 		return FALSE;
-	if (!flash_transmit_command (self, write_sr_enable_bp,
-				     sizeof (write_sr_enable_bp), error))
+	if (!fu_parade_lspcon_flash_transmit_command (self,
+						      write_sr_enable_bp,
+						      sizeof(write_sr_enable_bp),
+						      error))
 		return FALSE;
 
 	/* reassert /WP to flash */
-	return lspcon_write_register (self, REG_ADDR_WR_PROTECT, 0, error);
+	return fu_parade_lspcon_write_register (self, REG_ADDR_WR_PROTECT, 0, error);
+}
+
+static gboolean
+fu_parade_lspcon_set_mpu_running (FuParadeLspconDevice *self,
+				  gboolean running,
+				  GError **error)
+{
+	/* reset */
+	if (!fu_parade_lspcon_write_register (self, REG_ADDR_MPU, 0xc0, error))
+		return FALSE;
+
+	/* release reset, set MPU active or not */
+	return fu_parade_lspcon_write_register (self, REG_ADDR_MPU,
+						running ? 0 : 0x40, error);
+}
+
+static gboolean
+fu_parade_lspcon_device_detach (FuDevice *device, GError **error)
+{
+	FuParadeLspconDevice *self = FU_PARADE_LSPCON_DEVICE (device);
+	return fu_parade_lspcon_set_mpu_running (self, FALSE, error);
 }
 
 static gboolean
 fu_parade_lspcon_device_attach (FuDevice *device, GError **error)
 {
-	return set_mpu_running (FU_PARADE_LSPCON_DEVICE (device), TRUE, error);
+	FuParadeLspconDevice *self = FU_PARADE_LSPCON_DEVICE (device);
+	return fu_parade_lspcon_set_mpu_running (self, TRUE, error);
 }
 
-static GBytes*
+static GBytes *
 fu_parade_lspcon_device_dump_firmware (FuDevice *device, GError **error)
 {
 	FuParadeLspconDevice *self = FU_PARADE_LSPCON_DEVICE (device);
-	g_autofree guint8 *data = g_malloc (FLASH_BLOCK_SIZE);
+	g_autofree guint8 *data = g_malloc0 (FLASH_BLOCK_SIZE);
 
-	if (!flash_read (self, self->active_partition * FLASH_BLOCK_SIZE,
-			 data, FLASH_BLOCK_SIZE, error))
+	if (!fu_parade_lspcon_flash_read (self,
+					  self->active_partition * FLASH_BLOCK_SIZE,
+					  data, FLASH_BLOCK_SIZE, error))
 		return NULL;
-
 	return g_bytes_new_take (g_steal_pointer (&data), FLASH_BLOCK_SIZE);
 }
 

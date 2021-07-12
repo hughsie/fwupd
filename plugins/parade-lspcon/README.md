@@ -13,9 +13,9 @@ flashing, and reads the device firmware version from DPCD. Quirks specify the
 DisplayPort bus over which DPCD is read for a given system.
 
 Firmware is stored on an external flash attached to an SPI bus on the device.
-The attached flash is assumed to be compatible with the W25Q20 series
-of devices, in particular supporting a 64k Block Erase command (0xD8)
-with 24-bit address and Write Enable for Volatile Status Register (0x05).
+The attached flash is assumed to be compatible with the W25Q20 series of
+devices, in particular supporting a 64k Block Erase command (0xD8) with 24-bit
+address and Write Enable for Volatile Status Register (0x05).
 
 Firmware Format
 ---------------
