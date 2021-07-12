@@ -50,10 +50,6 @@ Internal device uses hardware ID values which are derived from SMBIOS.
 They should match the values provided by `fwupdtool hwids` or the
 `ComputerHardwareIds.exe` Windows utility.
 
-lspcon-i2c-spi devices use the customized DeviceInstanceId values, e.g.
-
- * FLASHROM-LSPCON-I2C-SPI\VEN_1AF8&DEV_0175
-
 Update Behavior
 ---------------
 
