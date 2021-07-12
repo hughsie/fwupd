@@ -44,14 +44,24 @@ fu_vli_common_device_kind_to_string (FuVliDeviceKind device_kind)
 		return "VL815";
 	if (device_kind == FU_VLI_DEVICE_KIND_VL817)
 		return "VL817";
-	if (device_kind == FU_VLI_DEVICE_KIND_VL819)
-		return "VL819";
+	if (device_kind == FU_VLI_DEVICE_KIND_VL819Q7)
+		return "VL819Q7";
+	if (device_kind == FU_VLI_DEVICE_KIND_VL819Q8)
+		return "VL819Q8";
 	if (device_kind == FU_VLI_DEVICE_KIND_VL820Q7)
 		return "VL820Q7";
 	if (device_kind == FU_VLI_DEVICE_KIND_VL820Q8)
 		return "VL820Q8";
-	if (device_kind == FU_VLI_DEVICE_KIND_VL822)
-		return "VL822";
+	if (device_kind == FU_VLI_DEVICE_KIND_VL821Q7)
+		return "VL821Q7";
+	if (device_kind == FU_VLI_DEVICE_KIND_VL821Q8)
+		return "VL821Q8";
+	if (device_kind == FU_VLI_DEVICE_KIND_VL822Q5)
+		return "VL822Q5";
+	if (device_kind == FU_VLI_DEVICE_KIND_VL822Q7)
+		return "VL822Q7";
+	if (device_kind == FU_VLI_DEVICE_KIND_VL822Q8)
+		return "VL822Q8";
 	if (device_kind == FU_VLI_DEVICE_KIND_VL120)
 		return "VL120";
 	if (device_kind == FU_VLI_DEVICE_KIND_VL210)
@@ -104,14 +114,24 @@ fu_vli_common_device_kind_from_string (const gchar *device_kind)
 		return FU_VLI_DEVICE_KIND_VL815;
 	if (g_strcmp0 (device_kind, "VL817") == 0)
 		return FU_VLI_DEVICE_KIND_VL817;
-	if (g_strcmp0 (device_kind, "VL819") == 0)
-		return FU_VLI_DEVICE_KIND_VL819;
+	if (g_strcmp0 (device_kind, "VL819Q7") == 0)
+		return FU_VLI_DEVICE_KIND_VL819Q7;
+	if (g_strcmp0 (device_kind, "VL819Q8") == 0)
+		return FU_VLI_DEVICE_KIND_VL819Q8;
 	if (g_strcmp0 (device_kind, "VL820Q7") == 0)
 		return FU_VLI_DEVICE_KIND_VL820Q7;
 	if (g_strcmp0 (device_kind, "VL820Q8") == 0)
 		return FU_VLI_DEVICE_KIND_VL820Q8;
-	if (g_strcmp0 (device_kind, "VL822") == 0)
-		return FU_VLI_DEVICE_KIND_VL822;
+	if (g_strcmp0 (device_kind, "VL821Q7") == 0)
+		return FU_VLI_DEVICE_KIND_VL821Q7;
+	if (g_strcmp0 (device_kind, "VL821Q8") == 0)
+		return FU_VLI_DEVICE_KIND_VL821Q8;
+	if (g_strcmp0 (device_kind, "VL822Q5") == 0)
+		return FU_VLI_DEVICE_KIND_VL822Q5;
+	if (g_strcmp0 (device_kind, "VL822Q7") == 0)
+		return FU_VLI_DEVICE_KIND_VL822Q7;
+	if (g_strcmp0 (device_kind, "VL822Q8") == 0)
+		return FU_VLI_DEVICE_KIND_VL822Q8;
 	if (g_strcmp0 (device_kind, "VL120") == 0)
 		return FU_VLI_DEVICE_KIND_VL120;
 	if (g_strcmp0 (device_kind, "VL210") == 0)
@@ -170,13 +190,23 @@ fu_vli_common_device_kind_get_size (FuVliDeviceKind device_kind)
 		return 0x20000 * 2;
 	if (device_kind == FU_VLI_DEVICE_KIND_VL817)
 		return 0x20000 * 2;
-	if (device_kind == FU_VLI_DEVICE_KIND_VL819)
+	if (device_kind == FU_VLI_DEVICE_KIND_VL819Q7)
+		return 0x20000 * 2;
+	if (device_kind == FU_VLI_DEVICE_KIND_VL819Q8)
 		return 0x20000 * 2;
 	if (device_kind == FU_VLI_DEVICE_KIND_VL820Q7)
 		return 0x20000 * 2;
 	if (device_kind == FU_VLI_DEVICE_KIND_VL820Q8)
 		return 0x20000 * 2;
-	if (device_kind == FU_VLI_DEVICE_KIND_VL822)
+	if (device_kind == FU_VLI_DEVICE_KIND_VL821Q7)
+		return 0x20000 * 2;
+	if (device_kind == FU_VLI_DEVICE_KIND_VL821Q8)
+		return 0x20000 * 2;
+	if (device_kind == FU_VLI_DEVICE_KIND_VL822Q5)
+		return 0x20000 * 2;
+	if (device_kind == FU_VLI_DEVICE_KIND_VL822Q7)
+		return 0x20000 * 2;
+	if (device_kind == FU_VLI_DEVICE_KIND_VL822Q8)
 		return 0x20000 * 2;
 	if (device_kind == FU_VLI_DEVICE_KIND_PS186)
 		return 0x40000;

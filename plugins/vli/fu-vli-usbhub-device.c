@@ -423,8 +423,7 @@ fu_vli_usbhub_device_guess_kind (FuVliUsbhubDevice *self, GError **error)
 {
 	GUsbDevice *usb_device = fu_usb_device_get_dev (FU_USB_DEVICE (self));
 	guint8 b811P812 = 0x0;
-	guint8 b820Q7Q8 = 0x0;
-	guint8 b820822 = 0x0;
+	guint8 pkgtype  = 0x0;
 	guint8 chipid1 = 0x0;
 	guint8 chipid2 = 0x0;
 	guint8 chipid12 = 0x0;
@@ -461,12 +460,8 @@ fu_vli_usbhub_device_guess_kind (FuVliUsbhubDevice *self, GError **error)
 		g_prefix_error (error, "Read_ChipID22 failed: ");
 		return FALSE;
 	}
-	if (!fu_vli_usbhub_device_read_reg (self, 0xf651, &b820Q7Q8, error)) {
+	if (!fu_vli_usbhub_device_read_reg (self, 0xf651, &pkgtype , error)) {
 		g_prefix_error (error, "Read_820Q7Q8 failed: ");
-		return FALSE;
-	}
-	if (!fu_vli_usbhub_device_read_reg (self, 0xf88c, &b820822, error)) {
-		g_prefix_error (error, "Read_820822 failed: ");
 		return FALSE;
 	}
 	if (g_getenv ("FWUPD_VLI_USBHUB_VERBOSE") != NULL) {
@@ -477,17 +472,52 @@ fu_vli_usbhub_device_guess_kind (FuVliUsbhubDevice *self, GError **error)
 		g_debug ("chipid2 = 0x%02x", chipid2);
 		g_debug ("chipid12 = 0x%02x", chipid12);
 		g_debug ("chipid22 = 0x%02x", chipid22);
-		g_debug ("b820Q7Q8 = 0x%02x", b820Q7Q8);
-		g_debug ("b820822 = 0x%02x", b820822);
+		g_debug ("pkgtype = 0x%02x", pkgtype);
 	}
 
 	if (chipid2 == 0x35 && chipid1 == 0x07) {
 		fu_vli_device_set_kind (FU_VLI_DEVICE (self), FU_VLI_DEVICE_KIND_VL210);
 	} else if (chipid2 == 0x35 && chipid1 == 0x18) {
-		if (b820822 == 0xF0) {
-			fu_vli_device_set_kind (FU_VLI_DEVICE (self), FU_VLI_DEVICE_KIND_VL822);
+                if (chipver == 0xF0) {
+                        /* packet type determines device kind for VL819-VL822, minus VL820 */
+                        switch ((pkgtype >> 1) & 0x07) { 
+                        /* VL822Q7 */
+                        case 0x00:
+                                fu_vli_device_set_kind (FU_VLI_DEVICE (self), FU_VLI_DEVICE_KIND_VL822Q7);
+                                break;
+                        /* VL822Q5 */
+                        case 0x01:
+                                fu_vli_device_set_kind (FU_VLI_DEVICE (self), FU_VLI_DEVICE_KIND_VL822Q5);
+                                break;
+                        /* VL822Q8 */
+                        case 0x02:
+                                fu_vli_device_set_kind (FU_VLI_DEVICE (self), FU_VLI_DEVICE_KIND_VL822Q8);
+                                break;
+                        /* VL821Q7 */
+                        case 0x04:
+                                fu_vli_device_set_kind (FU_VLI_DEVICE (self), FU_VLI_DEVICE_KIND_VL821Q7);
+                                break;
+                        /* VL819Q7 */
+                        case 0x05:
+                                fu_vli_device_set_kind (FU_VLI_DEVICE (self), FU_VLI_DEVICE_KIND_VL819Q7);
+                                break;
+                        /* VL821Q8 */
+                        case 0x06:
+                                fu_vli_device_set_kind (FU_VLI_DEVICE (self), FU_VLI_DEVICE_KIND_VL821Q8);
+                                break;
+                        /* VL819Q8 */
+                        case 0x07:
+                                fu_vli_device_set_kind (FU_VLI_DEVICE (self), FU_VLI_DEVICE_KIND_VL819Q8);
+                                break;
+                        default:
+                                g_set_error (error,
+                                             G_IO_ERROR,
+                                             G_IO_ERROR_NOT_SUPPORTED,
+                                             "Packet Type match failed: ");
+                                return FALSE;
+                        }
 		} else {
-			if (b820Q7Q8 & (1 << 2))
+			if (pkgtype & (1 << 2))
 				fu_vli_device_set_kind (FU_VLI_DEVICE (self), FU_VLI_DEVICE_KIND_VL820Q8);
 			else
 				fu_vli_device_set_kind (FU_VLI_DEVICE (self), FU_VLI_DEVICE_KIND_VL820Q7);
@@ -500,8 +530,6 @@ fu_vli_usbhub_device_guess_kind (FuVliUsbhubDevice *self, GError **error)
 		fu_vli_device_set_kind (FU_VLI_DEVICE (self), FU_VLI_DEVICE_KIND_VL211);
 	} else if (chipid22 == 0x35 && chipid12 == 0x53) {
 		fu_vli_device_set_kind (FU_VLI_DEVICE (self), FU_VLI_DEVICE_KIND_VL120);
-	} else if (chipid2 == 0x35 && chipid1 == 0x57) {
-		fu_vli_device_set_kind (FU_VLI_DEVICE (self), FU_VLI_DEVICE_KIND_VL819);
 	} else if (tPid == 0x810) {
 		fu_vli_device_set_kind (FU_VLI_DEVICE (self), FU_VLI_DEVICE_KIND_VL810);
 	} else if (tPid == 0x811) {
