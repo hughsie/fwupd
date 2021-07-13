@@ -553,6 +553,7 @@ fu_parade_lspcon_device_reload (FuDevice *device, GError **error)
 	guint32 oui;
 	guint8 version_buf[2] = { 0x0 };
 	g_autofree gchar *version = NULL;
+	g_autofree gchar *oui_string = NULL;
 	g_autoptr(FuDeviceLocker) aux_device_locker = NULL;
 	g_autoptr(FuUdevDevice) aux_device = NULL;
 	g_autoptr(GList) aux_devices = NULL;
@@ -616,6 +617,9 @@ fu_parade_lspcon_device_reload (FuDevice *device, GError **error)
 	if (!fu_udev_device_pread_full (aux_device, 0x500, (guint8 *) &oui, 3, error))
 		return FALSE;
 	oui = GUINT32_FROM_BE(oui) >> 8;
+	oui_string = g_strdup_printf ("OUI:%06X", oui);
+	fu_device_add_vendor_id (device, oui_string);
+
 	if (oui != 0x001CF8) {
 		g_set_error (error,
 			     FWUPD_ERROR,
