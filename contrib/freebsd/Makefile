@@ -46,6 +46,7 @@ MESON_ARGS=	-Dgudev=false \
 		-Dplugin_dell=false \
 		-Dplugin_emmc=false \
 		-Dplugin_nvme=false \
+		-Dplugin_parade_lspcon=false \
 		-Dplugin_redfish=false \
 		-Dplugin_synaptics_mst=false \
 		-Dplugin_synaptics_rmi=false \

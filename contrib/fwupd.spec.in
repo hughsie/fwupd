@@ -440,6 +440,7 @@ done
 %{_libdir}/fwupd-plugins-3/libfu_plugin_nitrokey.so
 %{_libdir}/fwupd-plugins-3/libfu_plugin_nvme.so
 %{_libdir}/fwupd-plugins-3/libfu_plugin_optionrom.so
+%{_libdir}/fwupd-plugins-3/libfu_plugin_parade_lspcon.so
 %{_libdir}/fwupd-plugins-3/libfu_plugin_pci_bcr.so
 %{_libdir}/fwupd-plugins-3/libfu_plugin_pci_mei.so
 %{_libdir}/fwupd-plugins-3/libfu_plugin_pixart_rf.so

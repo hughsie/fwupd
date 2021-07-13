@@ -1,0 +1,11 @@
+# match all devices with this udev subsystem
+[I2C]
+Plugin = parade_lspcon
+
+# Parade PS175
+[PARADE-LSPCON\NAME_1AF80175:00]
+Name = PS175
+
+# "Puff" Chromeboxes
+[PARADE-LSPCON\NAME_1AF80175:00&FAMILY_Google_Hatch]
+ParadeLspconAuxDeviceName=DPDDC-B

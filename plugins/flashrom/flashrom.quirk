@@ -32,14 +32,3 @@ VersionFormat=number
 [0ee5867c-93f0-5fb4-adf1-9d686ea1183a]
 Branch=coreboot
 VersionFormat=number
-
-# match all devices with this udev subsystem
-[I2C]
-Plugin = flashrom
-
-# Parade PS175
-[1AF80175:00]
-Plugin=flashrom
-FlashromProgrammer=lspcon_i2c_spi
-Name=PS175
-Vendor=Parade
