@@ -40,7 +40,6 @@ fu_plugin_init (FuPlugin *plugin)
 	fu_plugin_add_rule (plugin, FU_PLUGIN_RULE_METADATA_SOURCE, "linux_lockdown");
 	fu_plugin_add_rule (plugin, FU_PLUGIN_RULE_CONFLICTS, "coreboot"); /* obsoleted */
 	fu_plugin_add_flag (plugin, FWUPD_PLUGIN_FLAG_REQUIRE_HWID);
-	fu_plugin_add_udev_subsystem (plugin, "i2c");
 	fu_context_add_quirk_key (ctx, "FlashromProgrammer");
 }
 
