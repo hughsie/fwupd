@@ -750,7 +750,7 @@ fu_parade_lspcon_device_write_firmware (FuDevice *device,
 					  error))
 		return FALSE;
 	if (!fu_common_bytes_compare_raw (flag_data, sizeof(flag_data),
-					  readback_buf, bufsz,
+					  readback_buf, MIN (sizeof(flag_data), bufsz),
 					  error)) {
 		g_prefix_error (error, "flag partition contents do not match: ");
 		return FALSE;
