@@ -428,8 +428,8 @@ fu_parade_lspcon_flash_write (FuParadeLspconDevice *self,
 	FuDevice *device = FU_DEVICE (self);
 	FuI2cDevice *i2c_device = FU_I2C_DEVICE (self);
 	const guint8 unlock_writes[] = { 0xaa, 0x55, 0x50, 0x41, 0x52, 0x44 };
-	gsize data_len;
-	const guint8 *data_buf = g_bytes_get_data (data, &data_len);
+	gsize data_len = g_bytes_get_size (data);
+	g_autoptr(GPtrArray) chunks = NULL;
 
 	/* address must be 256-byte aligned */
 	g_return_val_if_fail ((base_address & 0xFF) == 0, FALSE);
@@ -452,9 +452,11 @@ fu_parade_lspcon_flash_write (FuParadeLspconDevice *self,
 	if (!fu_parade_lspcon_write_register (self, REG_ADDR_CLT2SPI, 0, error))
 		return FALSE;
 
-	for (gsize bytes_written = 0; bytes_written < data_len; bytes_written += 256) {
-		guint32 address = base_address + bytes_written;
-		guint32 chunk_size = MIN (data_len - bytes_written, 256);
+	chunks = fu_chunk_array_new_from_bytes (data, base_address, 0, 256);
+	for (gsize i = 0; i < chunks->len; i++) {
+		FuChunk *chunk = g_ptr_array_index (chunks, i);
+		guint32 address = fu_chunk_get_address (chunk);
+		guint32 chunk_size = fu_chunk_get_data_sz (chunk);
 		guint8 write_data[257] = { 0x0 };
 		g_autoptr(FuParadeLspconI2cAddressGuard) guard = NULL;
 
@@ -469,10 +471,7 @@ fu_parade_lspcon_flash_write (FuParadeLspconDevice *self,
 		/* page write is prefixed with an offset:
 		 * we always start from offset 0 */
 		write_data[0] = 0;
-		if (!fu_memcpy_safe (write_data, sizeof(write_data), 1,
-				     data_buf, data_len, bytes_written,
-				     chunk_size, error))
-			return FALSE;
+		memcpy(write_data + 1, fu_chunk_get_data (chunk), chunk_size);
 
 		if (!fu_i2c_device_write_full (i2c_device,
 					       write_data,
@@ -480,7 +479,7 @@ fu_parade_lspcon_flash_write (FuParadeLspconDevice *self,
 					       error))
 			return FALSE;
 
-		fu_device_set_progress_full (device, bytes_written, data_len);
+		fu_device_set_progress_full (device, address - base_address, data_len);
 	}
 
 	/* re-lock map writes */
