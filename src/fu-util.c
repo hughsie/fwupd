@@ -97,6 +97,20 @@ fu_util_update_device_changed_cb (FwupdClient *client,
 	if (fwupd_device_has_flag (device, FWUPD_DEVICE_FLAG_NEEDS_REBOOT))
 		priv->completion_flags |= FWUPD_DEVICE_FLAG_NEEDS_REBOOT;
 
+	/* immediate action required */
+	if (fwupd_device_has_flag (device, FWUPD_DEVICE_FLAG_NEEDS_BOOTLOADER) &&
+	    fwupd_device_get_update_message_kind (device) == FWUPD_DEVICE_MESSAGE_KIND_IMMEDIATE &&
+	    fwupd_device_get_update_message (device) != NULL) {
+		g_autofree gchar *fmt = NULL;
+		g_autofree gchar *tmp = NULL;
+
+		/* TRANSLATORS: the user needs to do something, e.g. remove the device */
+		fmt = fu_util_term_format (_("Action Required:"), FU_UTIL_TERM_COLOR_RED);
+		tmp = g_strdup_printf ("%s %s", fmt,
+				       fwupd_device_get_update_message (device));
+		fu_progressbar_set_title (priv->progressbar, tmp);
+	}
+
 	/* same as last time, so ignore */
 	if (priv->current_device != NULL &&
 	    fwupd_device_compare (priv->current_device, device) == 0)
@@ -132,8 +146,10 @@ fu_util_update_device_changed_cb (FwupdClient *client,
 	}
 	g_set_object (&priv->current_device, device);
 
-	if (priv->current_message == NULL) {
-		const gchar *tmp = fwupd_device_get_update_message (priv->current_device);
+	if (fwupd_device_get_update_message_kind (device) == FWUPD_DEVICE_MESSAGE_KIND_POST &&
+	    fwupd_device_get_update_message (device) != NULL &&
+	    priv->current_message == NULL) {
+		const gchar *tmp = fwupd_device_get_update_message (device);
 		if (tmp != NULL)
 			priv->current_message = g_strdup (tmp);
 	}
@@ -3268,6 +3284,7 @@ main (int argc, char *argv[])
 						     FWUPD_FEATURE_FLAG_CAN_REPORT |
 						     FWUPD_FEATURE_FLAG_SWITCH_BRANCH |
 						     FWUPD_FEATURE_FLAG_UPDATE_ACTION |
+						     FWUPD_FEATURE_FLAG_IMMEDIATE_MESSAGE |
 						     FWUPD_FEATURE_FLAG_DETACH_ACTION,
 						     priv->cancellable, &error)) {
 			g_printerr ("Failed to set front-end features: %s\n",

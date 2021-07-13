@@ -131,6 +131,11 @@ fwupd_enums_func (void)
 		g_assert_cmpstr (tmp, !=, NULL);
 		g_assert_cmpint (fwupd_trust_flag_from_string (tmp), ==, i);
 	}
+	for (guint i = 0; i < FWUPD_DEVICE_MESSAGE_KIND_LAST; i++) {
+		const gchar *tmp = fwupd_device_message_kind_to_string (i);
+		g_assert_cmpstr (tmp, !=, NULL);
+		g_assert_cmpint (fwupd_device_message_kind_from_string (tmp), ==, i);
+	}
 	for (guint i = FWUPD_RELEASE_URGENCY_UNKNOWN + 1; i < FWUPD_RELEASE_URGENCY_LAST; i++) {
 		const gchar *tmp = fwupd_release_urgency_to_string (i);
 		g_assert_cmpstr (tmp, !=, NULL);

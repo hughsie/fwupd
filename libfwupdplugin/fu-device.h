@@ -180,6 +180,7 @@ FuDevice	*fu_device_new_with_context		(FuContext	*ctx);
 #define fu_device_set_serial(d,v)		fwupd_device_set_serial(FWUPD_DEVICE(d),v)
 #define fu_device_set_summary(d,v)		fwupd_device_set_summary(FWUPD_DEVICE(d),v)
 #define fu_device_set_branch(d,v)		fwupd_device_set_branch(FWUPD_DEVICE(d),v)
+#define fu_device_set_update_message_kind(d,v)	fwupd_device_set_update_message_kind(FWUPD_DEVICE(d),v)
 #define fu_device_set_update_message(d,v)	fwupd_device_set_update_message(FWUPD_DEVICE(d),v)
 #define fu_device_set_update_image(d,v)		fwupd_device_set_update_image(FWUPD_DEVICE(d),v)
 #define fu_device_set_update_error(d,v)		fwupd_device_set_update_error(FWUPD_DEVICE(d),v)
@@ -222,6 +223,8 @@ FuDevice	*fu_device_new_with_context		(FuContext	*ctx);
 #define fu_device_get_protocols(d)		fwupd_device_get_protocols(FWUPD_DEVICE(d))
 #define fu_device_get_flashes_left(d)		fwupd_device_get_flashes_left(FWUPD_DEVICE(d))
 #define fu_device_get_install_duration(d)	fwupd_device_get_install_duration(FWUPD_DEVICE(d))
+#define fu_device_get_update_message_kind(d)	fwupd_device_get_update_message_kind(FWUPD_DEVICE(d))
+#define fu_device_get_update_message(d)		fwupd_device_get_update_message(FWUPD_DEVICE(d))
 
 /**
  * FuDeviceInternalFlags:

@@ -71,6 +71,7 @@ typedef enum {
  * @FWUPD_FEATURE_FLAG_DETACH_ACTION:		Can perform detach action, typically showing text
  * @FWUPD_FEATURE_FLAG_UPDATE_ACTION:		Can perform update action, typically showing text
  * @FWUPD_FEATURE_FLAG_SWITCH_BRANCH:		Can switch the firmware branch
+ * @FWUPD_FEATURE_FLAG_IMMEDIATE_MESSAGE:	Can show immediate messages
  *
  * The flags to the feature capabilities of the front-end client.
  **/
@@ -80,6 +81,7 @@ typedef enum {
 	FWUPD_FEATURE_FLAG_DETACH_ACTION	= 1 << 1,	/* Since: 1.4.5 */
 	FWUPD_FEATURE_FLAG_UPDATE_ACTION	= 1 << 2,	/* Since: 1.4.5 */
 	FWUPD_FEATURE_FLAG_SWITCH_BRANCH	= 1 << 3,	/* Since: 1.5.0 */
+	FWUPD_FEATURE_FLAG_IMMEDIATE_MESSAGE	= 1 << 4,	/* Since: 1.6.2 */
 	/*< private >*/
 	FWUPD_FEATURE_FLAG_LAST
 } FwupdFeatureFlags;

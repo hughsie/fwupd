@@ -1734,7 +1734,9 @@ fu_engine_history_func (gconstpointer user_data)
 	/* install it */
 	task = fu_install_task_new (device, component);
 	ret = fu_engine_install (engine, task, blob_cab,
-				 FWUPD_INSTALL_FLAG_NONE, &error);
+				 FWUPD_INSTALL_FLAG_NONE,
+				 FWUPD_FEATURE_FLAG_NONE,
+				 &error);
 	g_assert_no_error (error);
 	g_assert (ret);
 
@@ -1857,7 +1859,9 @@ fu_engine_multiple_rels_func (gconstpointer user_data)
 	/* install it */
 	task = fu_install_task_new (device, component);
 	ret = fu_engine_install (engine, task, blob_cab,
-				 FWUPD_INSTALL_FLAG_NONE, &error);
+				 FWUPD_INSTALL_FLAG_NONE,
+				 FWUPD_FEATURE_FLAG_NONE,
+				 &error);
 	g_assert_no_error (error);
 	g_assert (ret);
 
@@ -1930,7 +1934,9 @@ fu_engine_history_inherit (gconstpointer user_data)
 	g_setenv ("FWUPD_PLUGIN_TEST", "requires-activation", TRUE);
 	task = fu_install_task_new (device, component);
 	ret = fu_engine_install (engine, task, blob_cab,
-				 FWUPD_INSTALL_FLAG_NONE, &error);
+				 FWUPD_INSTALL_FLAG_NONE,
+				 FWUPD_FEATURE_FLAG_NONE,
+				 &error);
 	g_assert_no_error (error);
 	g_assert (ret);
 
@@ -1951,7 +1957,9 @@ fu_engine_history_inherit (gconstpointer user_data)
 	fu_device_set_version_format (device, FWUPD_VERSION_FORMAT_TRIPLET);
 	fu_device_set_version (device, "1.2.2");
 	ret = fu_engine_install (engine, task, blob_cab,
-				 FWUPD_INSTALL_FLAG_NONE, &error);
+				 FWUPD_INSTALL_FLAG_NONE,
+				 FWUPD_FEATURE_FLAG_NONE,
+				 &error);
 	g_assert_no_error (error);
 	g_assert (ret);
 	g_object_unref (engine);
@@ -2057,7 +2065,9 @@ fu_engine_history_error_func (gconstpointer user_data)
 	g_assert_nonnull (component);
 	task = fu_install_task_new (device, component);
 	ret = fu_engine_install (engine, task, blob_cab,
-				 FWUPD_INSTALL_FLAG_NONE, &error);
+				 FWUPD_INSTALL_FLAG_NONE,
+				 FWUPD_FEATURE_FLAG_NONE,
+				 &error);
 	g_assert_error (error, FWUPD_ERROR, FWUPD_ERROR_NOT_SUPPORTED);
 	g_assert (error != NULL);
 	g_assert_cmpstr (error->message, ==,
@@ -2796,7 +2806,9 @@ fu_plugin_module_func (gconstpointer user_data)
 	fu_engine_add_device (engine, device);
 	fu_engine_add_plugin (engine, self->plugin);
 	ret = fu_engine_install_blob (engine, device, blob_cab,
-				      FWUPD_INSTALL_FLAG_NONE, &error);
+				      FWUPD_INSTALL_FLAG_NONE,
+				      FWUPD_FEATURE_FLAG_NONE,
+				      &error);
 	g_assert_no_error (error);
 	g_assert (ret);
 	g_assert_cmpint (cnt, ==, 4);

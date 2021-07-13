@@ -29,6 +29,25 @@ struct _FwupdDeviceClass
 	void (*_fwupd_reserved7)	(void);
 };
 
+/**
+ * FwupdDeviceMessageKind:
+ * @FWUPD_DEVICE_MESSAGE_KIND_UNKNOWN:		Unknown kind
+ * @FWUPD_DEVICE_MESSAGE_KIND_POST:		After the update
+ * @FWUPD_DEVICE_MESSAGE_KIND_IMMEDIATE:	Immediately
+ *
+ * The kind of message we show the user.
+ **/
+typedef enum {
+	FWUPD_DEVICE_MESSAGE_KIND_UNKNOWN,		/* Since: 1.6.2 */
+	FWUPD_DEVICE_MESSAGE_KIND_POST,			/* Since: 1.6.2 */
+	FWUPD_DEVICE_MESSAGE_KIND_IMMEDIATE,		/* Since: 1.6.2 */
+	/*< private >*/
+	FWUPD_DEVICE_MESSAGE_KIND_LAST
+} FwupdDeviceMessageKind;
+
+const gchar	*fwupd_device_message_kind_to_string		(FwupdDeviceMessageKind	 update_message_kind);
+FwupdDeviceMessageKind fwupd_device_message_kind_from_string	(const gchar	*update_message_kind);
+
 FwupdDevice	*fwupd_device_new			(void);
 gchar		*fwupd_device_to_string			(FwupdDevice	*self);
 
@@ -161,6 +180,9 @@ void		 fwupd_device_set_update_state		(FwupdDevice	*self,
 const gchar	*fwupd_device_get_update_error		(FwupdDevice	*self);
 void		 fwupd_device_set_update_error		(FwupdDevice	*self,
 							 const gchar	*update_error);
+FwupdDeviceMessageKind fwupd_device_get_update_message_kind	(FwupdDevice	*self);
+void		 fwupd_device_set_update_message_kind	(FwupdDevice	*self,
+							 FwupdDeviceMessageKind	 update_message_kind);
 const gchar	*fwupd_device_get_update_message	(FwupdDevice	*self);
 void		 fwupd_device_set_update_message	(FwupdDevice	*self,
 							 const gchar	*update_message);

@@ -1479,6 +1479,7 @@ fu_device_set_quirk_kv (FuDevice *self,
 		return TRUE;
 	}
 	if (g_strcmp0 (key, FU_QUIRKS_UPDATE_MESSAGE) == 0) {
+		fu_device_set_update_message_kind (self, FWUPD_DEVICE_MESSAGE_KIND_POST);
 		fu_device_set_update_message (self, value);
 		return TRUE;
 	}
@@ -4414,11 +4415,13 @@ fu_device_incorporate_from_component (FuDevice *self, XbNode *component)
 	g_return_if_fail (FU_IS_DEVICE (self));
 	g_return_if_fail (XB_IS_NODE (component));
 	tmp = xb_node_query_text (component, "custom/value[@key='LVFS::UpdateMessage']", NULL);
-	if (tmp != NULL)
-		fwupd_device_set_update_message (FWUPD_DEVICE (self), tmp);
+	if (tmp != NULL) {
+		fu_device_set_update_message_kind (self, FWUPD_DEVICE_MESSAGE_KIND_POST);
+		fu_device_set_update_message (self, tmp);
+	}
 	tmp = xb_node_query_text (component, "custom/value[@key='LVFS::UpdateImage']", NULL);
 	if (tmp != NULL)
-		fwupd_device_set_update_image (FWUPD_DEVICE (self), tmp);
+		fu_device_set_update_image (self, tmp);
 }
 
 static void

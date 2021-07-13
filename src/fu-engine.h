@@ -146,11 +146,13 @@ gboolean	 fu_engine_install			(FuEngine	*self,
 							 FuInstallTask	*task,
 							 GBytes		*blob_cab,
 							 FwupdInstallFlags flags,
+							 FwupdFeatureFlags feature_flags,
 							 GError		**error);
 gboolean	 fu_engine_install_blob			(FuEngine	*self,
 							 FuDevice	*device,
 							 GBytes		*blob_fw,
 							 FwupdInstallFlags flags,
+							 FwupdFeatureFlags feature_flags,
 							 GError		**error);
 gboolean	 fu_engine_install_tasks		(FuEngine	*self,
 							 FuEngineRequest *request,

@@ -96,31 +96,64 @@ fu_system76_launch_device_setup (FuDevice *device, GError **error)
 }
 
 static gboolean
-fu_system76_launch_device_detach (FuDevice *device, GError **error)
+fu_system76_launch_device_reset (FuDevice *device, guint8 *rc, GError **error)
 {
-	guint8 data[32] = { 0 };
+	guint8 data[32] = { SYSTEM76_LAUNCH_CMD_RESET, 0 };
 
 	/* execute reset command */
-	data[0] = SYSTEM76_LAUNCH_CMD_RESET;
 	if (!fu_system76_launch_device_command (device, data, sizeof(data), error)) {
 		g_prefix_error (error, "failed to execute reset command: ");
 		return FALSE;
 	}
 
+	*rc = data[1];
+	return TRUE;
+}
+
+static gboolean
+fu_system76_launch_device_detach (FuDevice *device, GError **error)
+{
+	guint8 rc = 0x0;
+
 	/* prompt for unlock if reset was blocked */
-	if (data[1] != 0) {
-		g_set_error (error,
-			     FWUPD_ERROR,
-			     FWUPD_ERROR_NEEDS_USER_ACTION,
-			     "To ensure you have physical access, %s needs to be manually unlocked. "
-			     "Please press Fn+Esc to unlock and re-run the update.",
-			     fu_device_get_name (device));
+	if (!fu_system76_launch_device_reset (device, &rc, error))
 		return FALSE;
+	if (rc != 0) {
+		g_autoptr(GTimer) timer = g_timer_new ();
+
+		/* generate a message if not already set */
+		if (fu_device_get_update_message (device) == NULL) {
+			g_autofree gchar *msg = NULL;
+			msg = g_strdup_printf ("To ensure you have physical access, %s needs to be manually unlocked. "
+					       "Please press Fn+Esc to unlock and re-run the update.",
+					       fu_device_get_name (device));
+			fu_device_set_update_message_kind (device, FWUPD_DEVICE_MESSAGE_KIND_IMMEDIATE);
+			fu_device_set_update_message (device, msg);
+		}
+
+		/* the user has to do something */
+		fu_device_set_progress (device, 0);
+		fu_device_add_flag (device, FWUPD_DEVICE_FLAG_NEEDS_BOOTLOADER);
+
+		/* poll for the user-unlock */
+		do {
+			g_usleep (G_USEC_PER_SEC);
+			if (!fu_system76_launch_device_reset (device, &rc, error))
+				return FALSE;
+		} while (rc != 0 &&
+			 g_timer_elapsed (timer, NULL) * 1000.f < FU_DEVICE_REMOVE_DELAY_USER_REPLUG);
+		if (rc != 0) {
+			g_set_error_literal (error,
+					     FWUPD_ERROR,
+					     FWUPD_ERROR_NEEDS_USER_ACTION,
+					     fu_device_get_update_message (device));
+			return FALSE;
+		}
+		return TRUE;
 	}
 
 	fu_device_set_status (device, FWUPD_STATUS_DEVICE_RESTART);
 	fu_device_add_flag (device, FWUPD_DEVICE_FLAG_WAIT_FOR_REPLUG);
-
 	return TRUE;
 }
 

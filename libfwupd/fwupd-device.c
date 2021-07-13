@@ -65,6 +65,7 @@ typedef struct {
 	gchar				*update_message;
 	gchar				*update_image;
 	FwupdStatus			 status;
+	FwupdDeviceMessageKind		 update_message_kind;
 	GPtrArray			*releases;
 	FwupdDevice			*parent;	/* noref */
 } FwupdDevicePrivate;
@@ -77,6 +78,7 @@ enum {
 	PROP_STATUS,
 	PROP_PARENT,
 	PROP_UPDATE_STATE,
+	PROP_UPDATE_MESSAGE_KIND,
 	PROP_UPDATE_MESSAGE,
 	PROP_UPDATE_IMAGE,
 	PROP_LAST
@@ -84,6 +86,50 @@ enum {
 
 G_DEFINE_TYPE_WITH_PRIVATE (FwupdDevice, fwupd_device, G_TYPE_OBJECT)
 #define GET_PRIVATE(o) (fwupd_device_get_instance_private (o))
+
+/**
+ * fwupd_device_message_kind_to_string:
+ * @update_message_kind: a update message kind, e.g. %FWUPD_DEVICE_MESSAGE_KIND_IMMEDIATE
+ *
+ * Converts a enumerated update message kind to a string.
+ *
+ * Returns: identifier string
+ *
+ * Since: 1.6.2
+ **/
+const gchar *
+fwupd_device_message_kind_to_string (FwupdDeviceMessageKind update_message_kind)
+{
+	if (update_message_kind == FWUPD_DEVICE_MESSAGE_KIND_UNKNOWN)
+		return "unknown";
+	if (update_message_kind == FWUPD_DEVICE_MESSAGE_KIND_POST)
+		return "post";
+	if (update_message_kind == FWUPD_DEVICE_MESSAGE_KIND_IMMEDIATE)
+		return "immediate";
+	return NULL;
+}
+
+/**
+ * fwupd_device_message_kind_from_string:
+ * @update_message_kind: a string, e.g. `immediate`
+ *
+ * Converts a string to an enumerated update message kind.
+ *
+ * Returns: enumerated value
+ *
+ * Since: 1.6.2
+ **/
+FwupdDeviceMessageKind
+fwupd_device_message_kind_from_string (const gchar *update_message_kind)
+{
+	if (g_strcmp0 (update_message_kind, "unknown") == 0)
+		return FWUPD_DEVICE_MESSAGE_KIND_UNKNOWN;
+	if (g_strcmp0 (update_message_kind, "post") == 0)
+		return FWUPD_DEVICE_MESSAGE_KIND_POST;
+	if (g_strcmp0 (update_message_kind, "immediate") == 0)
+		return FWUPD_DEVICE_MESSAGE_KIND_IMMEDIATE;
+	return FWUPD_DEVICE_MESSAGE_KIND_LAST;
+}
 
 /**
  * fwupd_device_get_checksums:
@@ -1865,6 +1911,11 @@ fwupd_device_to_variant_full (FwupdDevice *self, FwupdDeviceFlags flags)
 				       FWUPD_RESULT_KEY_STATUS,
 				       g_variant_new_uint32 (priv->status));
 	}
+	if (priv->update_message_kind != FWUPD_DEVICE_MESSAGE_KIND_UNKNOWN) {
+		g_variant_builder_add (&builder, "{sv}",
+				       FWUPD_RESULT_KEY_UPDATE_MESSAGE_KIND,
+				       g_variant_new_uint32 (priv->update_message_kind));
+	}
 	if (priv->version_format != FWUPD_VERSION_FORMAT_UNKNOWN) {
 		g_variant_builder_add (&builder, "{sv}",
 				       FWUPD_RESULT_KEY_VERSION_FORMAT,
@@ -2067,6 +2118,10 @@ fwupd_device_from_key_value (FwupdDevice *self, const gchar *key, GVariant *valu
 	}
 	if (g_strcmp0 (key, FWUPD_RESULT_KEY_STATUS) == 0) {
 		fwupd_device_set_status (self, g_variant_get_uint32 (value));
+		return;
+	}
+	if (g_strcmp0 (key, FWUPD_RESULT_KEY_UPDATE_MESSAGE_KIND) == 0) {
+		fwupd_device_set_update_message_kind (self, g_variant_get_uint32 (value));
 		return;
 	}
 	if (g_strcmp0 (key, FWUPD_RESULT_KEY_VERSION_FORMAT) == 0) {
@@ -2466,6 +2521,45 @@ fwupd_device_add_release (FwupdDevice *self, FwupdRelease *release)
 	g_return_if_fail (FWUPD_IS_DEVICE (self));
 	g_ptr_array_add (priv->releases, g_object_ref (release));
 }
+
+/**
+ * fwupd_device_get_update_message_kind:
+ * @self: a #FwupdDevice
+ *
+ * Gets the current message kind.
+ *
+ * Returns: the update_message_kind value, e.g. %FWUPD_DEVICE_MESSAGE_KIND_POST
+ *
+ * Since: 1.6.2
+ **/
+FwupdDeviceMessageKind
+fwupd_device_get_update_message_kind (FwupdDevice *self)
+{
+	FwupdDevicePrivate *priv = GET_PRIVATE (self);
+	g_return_val_if_fail (FWUPD_IS_DEVICE (self), 0);
+	return priv->update_message_kind;
+}
+
+/**
+ * fwupd_device_set_update_message_kind:
+ * @self: a #FwupdDevice
+ * @update_message_kind: the update_message_kind value, e.g. %FWUPD_DEVICE_MESSAGE_KIND_POST
+ *
+ * Sets the current message kind.
+ *
+ * Since: 1.6.2
+ **/
+void
+fwupd_device_set_update_message_kind (FwupdDevice *self, FwupdDeviceMessageKind update_message_kind)
+{
+	FwupdDevicePrivate *priv = GET_PRIVATE (self);
+	g_return_if_fail (FWUPD_IS_DEVICE (self));
+	if (priv->update_message_kind == update_message_kind)
+		return;
+	priv->update_message_kind = update_message_kind;
+	g_object_notify (G_OBJECT (self), "update-message-kind");
+}
+
 /**
  * fwupd_device_get_status:
  * @self: a #FwupdDevice
@@ -2637,6 +2731,7 @@ fwupd_device_to_json (FwupdDevice *self, JsonBuilder *builder)
 	fwupd_device_json_add_int (builder, FWUPD_RESULT_KEY_MODIFIED, priv->modified);
 	fwupd_device_json_add_int (builder, FWUPD_RESULT_KEY_UPDATE_STATE, priv->update_state);
 	fwupd_device_json_add_int (builder, FWUPD_RESULT_KEY_STATUS, priv->status);
+	fwupd_device_json_add_int (builder, FWUPD_RESULT_KEY_UPDATE_MESSAGE_KIND, priv->update_message_kind);
 	fwupd_device_json_add_string (builder, FWUPD_RESULT_KEY_UPDATE_ERROR, priv->update_error);
 	fwupd_device_json_add_string (builder, FWUPD_RESULT_KEY_UPDATE_MESSAGE, priv->update_message);
 	fwupd_device_json_add_string (builder, FWUPD_RESULT_KEY_UPDATE_IMAGE, priv->update_image);
@@ -2806,6 +2901,10 @@ fwupd_device_to_string (FwupdDevice *self)
 	fwupd_pad_kv_unx (str, FWUPD_RESULT_KEY_MODIFIED, priv->modified);
 	fwupd_pad_kv_ups (str, FWUPD_RESULT_KEY_UPDATE_STATE, priv->update_state);
 	fwupd_pad_kv_str (str, FWUPD_RESULT_KEY_UPDATE_ERROR, priv->update_error);
+	if (priv->update_message_kind != FWUPD_DEVICE_MESSAGE_KIND_UNKNOWN) {
+		fwupd_pad_kv_str (str, FWUPD_RESULT_KEY_UPDATE_MESSAGE_KIND,
+				  fwupd_device_message_kind_to_string (priv->update_message_kind));
+	}
 	fwupd_pad_kv_str (str, FWUPD_RESULT_KEY_UPDATE_MESSAGE, priv->update_message);
 	fwupd_pad_kv_str (str, FWUPD_RESULT_KEY_UPDATE_IMAGE, priv->update_image);
 	for (guint i = 0; i < priv->releases->len; i++) {
@@ -2843,6 +2942,9 @@ fwupd_device_get_property (GObject *object, guint prop_id,
 	case PROP_STATUS:
 		g_value_set_uint (value, priv->status);
 		break;
+	case PROP_UPDATE_MESSAGE_KIND:
+		g_value_set_uint (value, priv->update_message_kind);
+		break;
 	case PROP_PARENT:
 		g_value_set_object (value, priv->parent);
 		break;
@@ -2878,6 +2980,9 @@ fwupd_device_set_property (GObject *object, guint prop_id,
 		break;
 	case PROP_STATUS:
 		fwupd_device_set_status (self, g_value_get_uint (value));
+		break;
+	case PROP_UPDATE_MESSAGE_KIND:
+		fwupd_device_set_update_message_kind (self, g_value_get_uint (value));
 		break;
 	case PROP_PARENT:
 		fwupd_device_set_parent (self, g_value_get_object (value));
@@ -2929,6 +3034,14 @@ fwupd_device_class_init (FwupdDeviceClass *klass)
 				   G_PARAM_READWRITE |
 				   G_PARAM_STATIC_NAME);
 	g_object_class_install_property (object_class, PROP_STATUS, pspec);
+
+	pspec = g_param_spec_uint ("update-message-kind", NULL, NULL,
+				   FWUPD_DEVICE_MESSAGE_KIND_UNKNOWN,
+				   FWUPD_DEVICE_MESSAGE_KIND_LAST,
+				   FWUPD_DEVICE_MESSAGE_KIND_UNKNOWN,
+				   G_PARAM_READWRITE |
+				   G_PARAM_STATIC_NAME);
+	g_object_class_install_property (object_class, PROP_UPDATE_MESSAGE_KIND, pspec);
 
 	pspec = g_param_spec_object ("parent", NULL, NULL,
 				     FWUPD_TYPE_DEVICE,

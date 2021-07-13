@@ -307,6 +307,14 @@ G_BEGIN_DECLS
  **/
 #define FWUPD_RESULT_KEY_STATUS			"Status"
 /**
+ * FWUPD_RESULT_KEY_UPDATE_MESSAGE_KIND:
+ *
+ * Result key to represent UpdateMessageKind
+ *
+ * The D-Bus type signature string is 'u' i.e. a unsigned 32 bit integer.
+ **/
+#define FWUPD_RESULT_KEY_UPDATE_MESSAGE_KIND	"UpdateMessageKind"
+/**
  * FWUPD_RESULT_KEY_SUMMARY:
  *
  * Result key to represent Summary

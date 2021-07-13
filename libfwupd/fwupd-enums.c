@@ -513,6 +513,8 @@ fwupd_feature_flag_to_string (FwupdFeatureFlags feature_flag)
 		return "update-action";
 	if (feature_flag == FWUPD_FEATURE_FLAG_SWITCH_BRANCH)
 		return "switch-branch";
+	if (feature_flag == FWUPD_FEATURE_FLAG_IMMEDIATE_MESSAGE)
+		return "immediate-message";
 	return NULL;
 }
 
@@ -539,6 +541,8 @@ fwupd_feature_flag_from_string (const gchar *feature_flag)
 		return FWUPD_FEATURE_FLAG_UPDATE_ACTION;
 	if (g_strcmp0 (feature_flag, "switch-branch") == 0)
 		return FWUPD_FEATURE_FLAG_SWITCH_BRANCH;
+	if (g_strcmp0 (feature_flag, "immediate-message") == 0)
+		return FWUPD_FEATURE_FLAG_IMMEDIATE_MESSAGE;
 	return FWUPD_FEATURE_FLAG_LAST;
 }
 
